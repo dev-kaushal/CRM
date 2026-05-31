@@ -1,0 +1,131 @@
+/* 
+ * UIverse-inspired Tooltip Library
+ * Vanilla CSS implementation mimicking Shadcn UI modularity
+ */
+
+.ui-tooltip-container {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+}
+
+/* Base Tooltip Text */
+.ui-tooltip-container .ui-tooltip-text {
+    visibility: hidden;
+    position: absolute;
+    z-index: 50;
+    opacity: 0;
+    transition: opacity 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), 
+                transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), 
+                visibility 0.3s;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+    
+    /* Using User's Strict Palette */
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    border: 1px solid var(--card-border);
+    box-shadow: 0 4px 15px rgba(10, 10, 10, 0.3);
+    backdrop-filter: blur(8px);
+}
+
+/* Tooltip Arrow */
+.ui-tooltip-container .ui-tooltip-text::after {
+    content: "";
+    position: absolute;
+    border-width: 6px;
+    border-style: solid;
+}
+
+/* =========================================
+     Variant 1: Top (Slide up & bounce)
+     ========================================= */
+.ui-tooltip-top .ui-tooltip-text {
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+}
+
+.ui-tooltip-top .ui-tooltip-text::after {
+    top: 100%;
+    left: 50%;
+    margin-left: -6px;
+    border-color: var(--card-border) transparent transparent transparent;
+}
+
+.ui-tooltip-top:hover .ui-tooltip-text {
+    visibility: visible;
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* =========================================
+     Variant 2: Bottom (Slide down)
+     ========================================= */
+.ui-tooltip-bottom .ui-tooltip-text {
+    top: 125%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-10px);
+}
+
+.ui-tooltip-bottom .ui-tooltip-text::after {
+    bottom: 100%;
+    left: 50%;
+    margin-left: -6px;
+    border-color: transparent transparent var(--card-border) transparent;
+}
+
+.ui-tooltip-bottom:hover .ui-tooltip-text {
+    visibility: visible;
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* =========================================
+     Variant 3: Right (Slide right & glow)
+     ========================================= */
+.ui-tooltip-right .ui-tooltip-text {
+    top: 50%;
+    left: 115%;
+    transform: translateY(-50%) translateX(-10px);
+    box-shadow: 0 0 15px var(--card-border);
+}
+
+.ui-tooltip-right .ui-tooltip-text::after {
+    top: 50%;
+    right: 100%;
+    margin-top: -6px;
+    border-color: transparent var(--card-border) transparent transparent;
+}
+
+.ui-tooltip-right:hover .ui-tooltip-text {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+}
+
+/* =========================================
+     Variant 4: Left (Slide left)
+     ========================================= */
+.ui-tooltip-left .ui-tooltip-text {
+    top: 50%;
+    right: 115%;
+    transform: translateY(-50%) translateX(10px);
+}
+
+.ui-tooltip-left .ui-tooltip-text::after {
+    top: 50%;
+    left: 100%;
+    margin-top: -6px;
+    border-color: transparent transparent transparent var(--card-border);
+}
+
+.ui-tooltip-left:hover .ui-tooltip-text {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+}

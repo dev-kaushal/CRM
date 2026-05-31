@@ -1,0 +1,782 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========================================
+   CT-CRM Design System — Strict 6-Color Palette
+   Colors: #0a0a0a, #1a1a1a, #737373, #717478, #cee7ff, #f0f8fe
+   Font: "Cause" (display + body)
+   ======================================== */
+
+/* ========================================
+   LIGHT THEME (default)
+   ======================================== */
+:root {
+  /* CT-CRM 6-Color Palette Mapping — Frosted Translucent Glass Upgrade */
+  --bg-color: #f0f8fe;
+  --text-color: #0a0a0a;
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-bg-solid: #ffffff; /* Solid opaque color to mask rotating backgrounds */
+  --card-border: rgba(113, 116, 120, 0.35);
+  --blob-1: rgba(115, 116, 120, 0.15);
+  --blob-2: rgba(26, 26, 26, 0.2);
+  --glass-shadow: 0 12px 40px 0 rgba(115, 116, 120, 0.18);
+
+  /* High Contrast Graph & SVG Trace Variables */
+  --graph-from: rgba(8, 145, 178, 0.2);
+  --graph-to: #0891b2;
+  --graph-grid: rgba(8, 145, 178, 0.08);
+
+  /* Shadcn Token Mapping — Light */
+  --background: #f0f8fe;
+  --foreground: #0a0a0a;
+  --card: rgba(255, 255, 255, 0.85);
+  --card-foreground: #0a0a0a;
+  --popover: #f0f8fe;
+  --popover-foreground: #0a0a0a;
+  --primary: #0a0a0a;
+  --primary-foreground: #f0f8fe;
+  --secondary: rgba(206, 231, 255, 0.55);
+  --secondary-foreground: #0a0a0a;
+  --muted: rgba(206, 231, 255, 0.55);
+  --muted-foreground: #717478;
+  --accent: rgba(206, 231, 255, 0.55);
+  --accent-foreground: #0a0a0a;
+  --destructive: #dc2626;
+  --destructive-foreground: #f0f8fe;
+  --border: rgba(113, 116, 120, 0.35);
+  --input: rgba(113, 116, 120, 0.35);
+  --ring: #737373;
+  --radius: 0.75rem;
+}
+
+/* ========================================
+   DARK THEME
+   ======================================== */
+.dark,
+[data-theme="dark"] {
+  --bg-color: #0a0a0a;
+  --text-color: #f0f8fe;
+  --card-bg: rgba(26, 26, 26, 0.65);
+  --card-bg-solid: #1a1a1a; /* Solid dark theme card background */
+  --card-border: rgba(115, 116, 120, 0.25);
+  --blob-1: rgba(113, 116, 120, 0.15);
+  --blob-2: rgba(206, 231, 255, 0.25);
+  --glass-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.55);
+
+  --graph-from: rgba(0, 242, 254, 0.15);
+  --graph-to: #00f2fe;
+  --graph-grid: rgba(0, 242, 254, 0.04);
+
+  --background: #0a0a0a;
+  --foreground: #f0f8fe;
+  --card: rgba(26, 26, 26, 0.65);
+  --card-foreground: #f0f8fe;
+  --popover: rgba(26, 26, 26, 0.65);
+  --popover-foreground: #f0f8fe;
+  --primary: #f0f8fe;
+  --primary-foreground: #0a0a0a;
+  --secondary: rgba(26, 26, 26, 0.65);
+  --secondary-foreground: #f0f8fe;
+  --muted: rgba(26, 26, 26, 0.65);
+  --muted-foreground: #717478;
+  --accent: rgba(26, 26, 26, 0.65);
+  --accent-foreground: #f0f8fe;
+  --destructive: #ef4444;
+  --destructive-foreground: #f0f8fe;
+  --border: rgba(115, 116, 120, 0.25);
+  --input: rgba(115, 116, 120, 0.25);
+  --ring: #717478;
+}
+
+[data-theme="light"] {
+  --bg-color: #f0f8fe;
+  --text-color: #0a0a0a;
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-bg-solid: #ffffff; /* Solid light theme card background */
+  --card-border: rgba(113, 116, 120, 0.35);
+  --blob-1: rgba(115, 116, 120, 0.15);
+  --blob-2: rgba(26, 26, 26, 0.2);
+  --glass-shadow: 0 12px 40px 0 rgba(115, 116, 120, 0.18);
+
+  --graph-from: rgba(8, 145, 178, 0.2);
+  --graph-to: #0891b2;
+  --graph-grid: rgba(8, 145, 178, 0.08);
+
+  --background: #f0f8fe;
+  --foreground: #0a0a0a;
+  --card: rgba(255, 255, 255, 0.85);
+  --card-foreground: #0a0a0a;
+  --popover: #f0f8fe;
+  --popover-foreground: #0a0a0a;
+  --primary: #0a0a0a;
+  --primary-foreground: #f0f8fe;
+  --secondary: rgba(206, 231, 255, 0.55);
+  --secondary-foreground: #0a0a0a;
+  --muted: rgba(206, 231, 255, 0.55);
+  --muted-foreground: #717478;
+  --accent: rgba(206, 231, 255, 0.55);
+  --accent-foreground: #0a0a0a;
+  --destructive: #dc2626;
+  --destructive-foreground: #f0f8fe;
+  --border: rgba(113, 116, 120, 0.35);
+  --input: rgba(113, 116, 120, 0.35);
+  --ring: #737373;
+}
+
+/* ========================================
+   BASE LAYER
+   ======================================== */
+@layer base {
+  * {
+    @apply border-border;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Cause", cursive, system-ui, sans-serif;
+    font-optical-sizing: auto;
+    min-height: 100vh;
+    overflow-x: hidden;
+    transition: background-color 0.5s ease, color 0.5s ease;
+  }
+
+  html {
+    font-family: "Cause", cursive, system-ui, sans-serif;
+  }
+}
+
+/* ========================================
+   CAUSE FONT CLASS
+   ======================================== */
+.cause-font {
+  font-family: "Cause", cursive, system-ui, sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 700;
+  font-style: normal;
+}
+
+/* ========================================
+   BACKGROUND ANIMATION (Blobs)
+   ======================================== */
+.background-animation {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.blob {
+  position: absolute;
+  filter: blur(80px);
+  border-radius: 50%;
+  opacity: 0.4;
+  animation: float 10s infinite ease-in-out alternate;
+}
+
+.blob-1 {
+  width: 400px;
+  height: 400px;
+  background: var(--blob-1);
+  top: -100px;
+  left: -100px;
+  transition: background 0.5s ease;
+}
+
+.blob-2 {
+  width: 300px;
+  height: 300px;
+  background: var(--blob-2);
+  bottom: -50px;
+  right: -50px;
+  animation-delay: -5s;
+  transition: background 0.5s ease;
+}
+
+.blob-3 {
+  width: 250px;
+  height: 250px;
+  background: var(--blob-2);
+  top: 50%;
+  left: 50%;
+  opacity: 0.2;
+  animation-delay: -3s;
+  transition: background 0.5s ease;
+}
+
+@keyframes float {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    transform: translate(100px, 50px) scale(1.2);
+  }
+}
+
+/* ========================================
+   GLASS CARD SYSTEM
+   ======================================== */
+.glass-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--card-border);
+  border-radius: 24px;
+  padding: 3rem;
+  box-shadow: var(--glass-shadow);
+  transition: transform 0.4s ease, box-shadow 0.4s ease, background 0.5s ease;
+}
+
+.glass-card:hover {
+  transform: translateY(-4px);
+}
+
+/* ========================================
+   NEON TEAL BORDER ANIMATION (Frosted Laser Beam)
+   ======================================== */
+.neon-teal-border {
+  position: relative;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: var(--glass-shadow);
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+  z-index: 0;
+  border: none !important;
+  background: transparent !important;
+}
+
+.neon-teal-border > * {
+  position: relative;
+  z-index: 1;
+}
+
+.neon-teal-border::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    rgba(0, 242, 254, 0.25) 15%,
+    #00f2fe 35%,
+    #00b8ff 50%,
+    #a855f7 70%,
+    rgba(168, 85, 247, 0.25) 85%,
+    transparent 100%
+  );
+  animation: rotate-border 5s linear infinite;
+  z-index: -2;
+}
+
+.neon-teal-border::after {
+  content: '';
+  position: absolute;
+  inset: 2.2px; /* Thicker, high-end border outline */
+  background: var(--card-bg-solid); /* Block background bleeding permanently */
+  border-radius: 22.5px;
+  z-index: -1;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+@keyframes rotate-border {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.neon-teal-border:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 0 35px rgba(0, 242, 254, 0.65), var(--glass-shadow);
+}
+
+/* ========================================
+   HIGH-END SERIF BRAND LOGO TYPOGRAPHY
+   ======================================== */
+.brand-logo-text {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 3.8rem;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0px 2px 8px rgba(79, 70, 229, 0.15));
+  margin-bottom: 0.35rem;
+}
+
+[data-theme="dark"] .brand-logo-text {
+  background: linear-gradient(135deg, #a855f7, #7c3aed, #00f2fe);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0px 2px 8px rgba(168, 85, 247, 0.25));
+}
+
+.brand-logo-subtitle {
+  font-family: 'Syncopate', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.38em;
+  text-transform: uppercase;
+  color: #4f46e5;
+  filter: drop-shadow(0px 0px 4px rgba(79, 70, 229, 0.15));
+  margin-left: 0.1em;
+}
+
+[data-theme="dark"] .brand-logo-subtitle {
+  color: #00f2fe;
+  filter: drop-shadow(0px 0px 8px rgba(0, 242, 254, 0.45));
+}
+
+[data-theme="dark"] .glass-card:hover {
+  box-shadow: 0 15px 40px 0 rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="light"] .glass-card:hover {
+  box-shadow: 0 15px 40px 0 rgba(113, 116, 120, 0.4);
+}
+
+/* ========================================
+   WATERMELON UI BUTTONS
+   ======================================== */
+.wm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  border: 1px solid transparent;
+  font-family: "Cause", cursive, system-ui, sans-serif;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.wm-btn svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  transition: transform 0.2s ease;
+}
+
+.wm-btn:hover svg {
+  transform: translate(2px, -2px);
+}
+
+/* Primary Solid */
+.wm-btn-primary {
+  background: var(--text-color);
+  color: var(--bg-color);
+}
+
+.wm-btn-primary:hover {
+  opacity: 0.85;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px var(--card-border);
+}
+
+.wm-btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Outline */
+.wm-btn-outline {
+  background: transparent;
+  color: var(--text-color);
+  border-color: var(--card-border);
+}
+
+.wm-btn-outline:hover {
+  background: var(--card-border);
+  color: var(--text-color);
+}
+
+/* Ghost */
+.wm-btn-ghost {
+  background: transparent;
+  color: var(--text-color);
+}
+
+.wm-btn-ghost:hover {
+  background: var(--card-border);
+}
+
+/* Neumorphic */
+.wm-btn-neu {
+  background: var(--card-bg);
+  color: var(--text-color);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+}
+
+[data-theme="dark"] .wm-btn-neu {
+  box-shadow: 4px 4px 10px #0a0a0a, -4px -4px 10px #1a1a1a;
+}
+[data-theme="dark"] .wm-btn-neu:hover {
+  box-shadow: 6px 6px 15px #0a0a0a, -6px -6px 15px #1a1a1a;
+  transform: translateY(-2px);
+}
+[data-theme="dark"] .wm-btn-neu:active {
+  box-shadow: inset 4px 4px 10px #0a0a0a, inset -4px -4px 10px #1a1a1a;
+  transform: translateY(1px);
+}
+
+[data-theme="light"] .wm-btn-neu {
+  box-shadow: 4px 4px 10px #cee7ff, -4px -4px 10px #f0f8fe;
+}
+[data-theme="light"] .wm-btn-neu:hover {
+  box-shadow: 6px 6px 15px #717478, -6px -6px 15px #f0f8fe;
+  transform: translateY(-2px);
+}
+[data-theme="light"] .wm-btn-neu:active {
+  box-shadow: inset 4px 4px 10px #737373, inset -4px -4px 10px #cee7ff;
+  transform: translateY(1px);
+}
+
+/* Sliding Gradient */
+.wm-btn-slide {
+  background: var(--card-bg);
+  color: var(--text-color);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+}
+
+.wm-btn-slide::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--card-border),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.wm-btn-slide:hover::before {
+  left: 100%;
+}
+
+.wm-btn-slide:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 25px var(--card-border);
+}
+
+/* Storm Button */
+.wm-btn-storm {
+  position: relative;
+  padding: 0.8em 1.6em;
+  outline: none;
+  text-decoration: none;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  border: 1px solid #737373;
+  text-transform: uppercase;
+  background-color: #1a1a1a;
+  border-radius: 10px;
+  color: #f0f8fe;
+  font-weight: 600;
+  font-size: 1rem;
+  font-family: "Cause", cursive, system-ui, sans-serif;
+  z-index: 0;
+  overflow: hidden;
+  letter-spacing: 0.08em;
+  transition: all 0.3s cubic-bezier(0.02, 0.01, 0.47, 1);
+}
+
+[data-theme="dark"] .wm-btn-storm {
+  background-color: #1a1a1a;
+  border-color: #737373;
+  color: #f0f8fe;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6), inset 0 1px 0 #717478;
+}
+
+[data-theme="light"] .wm-btn-storm {
+  background-color: #0a0a0a;
+  border-color: #717478;
+  color: #f0f8fe;
+  box-shadow: 0 4px 18px rgba(10, 10, 10, 0.25);
+}
+
+.wm-btn-storm:hover {
+  animation: wm-storm-sh0 0.5s ease-in-out both;
+}
+
+@keyframes wm-storm-sh0 {
+  0% {
+    transform: rotate(0deg) translate3d(0, 0, 0);
+  }
+  25% {
+    transform: rotate(7deg) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: rotate(-7deg) translate3d(0, 0, 0);
+  }
+  75% {
+    transform: rotate(1deg) translate3d(0, 0, 0);
+  }
+  100% {
+    transform: rotate(0deg) translate3d(0, 0, 0);
+  }
+}
+
+.wm-btn-storm:hover span {
+  animation: wm-storm-text 0.7s ease-in-out both;
+  animation-delay: 0.06s;
+}
+
+@keyframes wm-storm-text {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  20% {
+    transform: translate3d(-4px, 0, 0);
+  }
+  40% {
+    transform: translate3d(4px, 0, 0);
+  }
+  60% {
+    transform: translate3d(-2px, 0, 0);
+  }
+  80% {
+    transform: translate3d(2px, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.wm-btn-storm::before,
+.wm-btn-storm::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: #f0f8fe;
+  opacity: 0;
+  transition: transform 0.15s cubic-bezier(0.02, 0.01, 0.47, 1),
+    opacity 0.15s cubic-bezier(0.02, 0.01, 0.47, 1);
+  z-index: -1;
+  transform: translate(100%, -25%) translate3d(0, 0, 0);
+}
+
+.wm-btn-storm:hover::before,
+.wm-btn-storm:hover::after {
+  opacity: 0.15;
+  transition: transform 0.2s cubic-bezier(0.02, 0.01, 0.47, 1),
+    opacity 0.2s cubic-bezier(0.02, 0.01, 0.47, 1);
+}
+
+.wm-btn-storm:hover::before {
+  transform: translate3d(50%, 0, 0) scale(0.9);
+}
+
+.wm-btn-storm:hover::after {
+  transform: translate(50%, 0) scale(1.1);
+}
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+.fade-in-up {
+  animation: fadeInUp 1s ease-out forwards;
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -40;
+  }
+}
+
+/* ========================================
+   SKELETON LOADER
+   ======================================== */
+.skeleton-pulse {
+  position: relative;
+  overflow: hidden;
+  background: var(--card-bg);
+  border-radius: 8px;
+}
+
+.skeleton-pulse::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(206, 231, 255, 0.08),
+    transparent
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+[data-theme="light"] .skeleton-pulse::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(113, 116, 120, 0.1),
+    transparent
+  );
+}
+
+/* ========================================
+   CUSTOM INPUT FOCUS RING
+   ======================================== */
+.ct-input {
+  transition: all 0.3s ease;
+}
+
+.ct-input:focus {
+  border-color: var(--blob-2) !important;
+  box-shadow: 0 0 0 3px rgba(206, 231, 255, 0.15);
+  outline: none;
+}
+
+[data-theme="light"] .ct-input:focus {
+  box-shadow: 0 0 0 3px rgba(113, 116, 120, 0.15);
+}
+
+/* ========================================
+   CUSTOM SCROLLBAR
+   ======================================== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-color);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--blob-2);
+}
+
+/* ========================================
+   HIGH CONTRAST INPUT & PLACEHOLDER SYSTEM
+   ======================================== */
+.ct-input {
+  transition: all 0.3s ease;
+}
+
+[data-theme="light"] .ct-input {
+  background: #ffffff !important;
+  border: 1.5px solid rgba(113, 116, 120, 0.45) !important;
+  color: #0a0a0a !important;
+}
+
+.ct-input::placeholder {
+  color: var(--card-border);
+  opacity: 0.7;
+}
+
+[data-theme="light"] .ct-input::placeholder {
+  color: rgba(113, 116, 120, 0.75) !important;
+  opacity: 1;
+}
+
+.ct-input:focus {
+  border-color: var(--blob-2) !important;
+  box-shadow: 0 0 0 3px rgba(206, 231, 255, 0.15);
+  outline: none;
+}
+
+[data-theme="light"] .ct-input:focus {
+  border-color: #00b8ff !important;
+  box-shadow: 0 0 0 3px rgba(0, 184, 255, 0.15) !important;
+}
