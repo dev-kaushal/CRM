@@ -307,40 +307,31 @@
    HIGH-END SERIF BRAND LOGO TYPOGRAPHY
    ======================================== */
 .brand-logo-text {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: "Cause", cursive, system-ui, sans-serif;
   font-size: 3.8rem;
-  font-weight: 300;
-  letter-spacing: -0.02em;
+  font-weight: 800;
+  letter-spacing: -0.03em;
   line-height: 0.95;
-  background: linear-gradient(135deg, #4f46e5, #7c3aed, #a855f7);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0px 2px 8px rgba(79, 70, 229, 0.15));
+  color: var(--text-color);
   margin-bottom: 0.35rem;
 }
 
 [data-theme="dark"] .brand-logo-text {
-  background: linear-gradient(135deg, #a855f7, #7c3aed, #00f2fe);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0px 2px 8px rgba(168, 85, 247, 0.25));
+  color: var(--text-color);
 }
 
 .brand-logo-subtitle {
-  font-family: 'Syncopate', sans-serif;
+  font-family: "Cause", cursive, system-ui, sans-serif;
   font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.38em;
+  font-weight: 600;
+  letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: #4f46e5;
-  filter: drop-shadow(0px 0px 4px rgba(79, 70, 229, 0.15));
+  color: var(--muted-foreground);
   margin-left: 0.1em;
 }
 
 [data-theme="dark"] .brand-logo-subtitle {
-  color: #00f2fe;
-  filter: drop-shadow(0px 0px 8px rgba(0, 242, 254, 0.45));
+  color: var(--muted-foreground);
 }
 
 [data-theme="dark"] .glass-card:hover {

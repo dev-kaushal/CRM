@@ -93,7 +93,7 @@ export function RevenueTrend({ data, loading }: RevenueTrendProps) {
                 fontSize: "12px",
                 color: "var(--text-color)",
               }}
-              formatter={(value: number) => [`₹${(value / 100000).toFixed(1)}L`, ""]}
+              formatter={(value: any) => [`₹${(Number(value || 0) / 100000).toFixed(1)}L`, ""]}
             />
             <Area
               type="monotone"

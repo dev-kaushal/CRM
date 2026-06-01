@@ -48,7 +48,7 @@ export function PipelineFunnel({ data, loading }: PipelineFunnelProps) {
                   fontSize: "12px",
                   color: "var(--text-color)",
                 }}
-                formatter={(value: number) => [`${value} deals`, "Count"]}
+                formatter={(value: any) => [`${value} deals`, "Count"]}
               />
               <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={24}>
                 {data.map((entry, index) => (

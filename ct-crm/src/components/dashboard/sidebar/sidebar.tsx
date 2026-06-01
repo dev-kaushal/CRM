@@ -20,7 +20,7 @@ import {
 import { useRef, type ComponentType } from "react";
 
 // Icon mapping — All verified exports from @animateicons/react/lucide
-const ICON_MAP: Record<string, ComponentType<{ size?: number; ref?: React.Ref<any> }>> = {
+const ICON_MAP: Record<string, any> = {
   LayoutDashboardIcon: DashboardIcon,
   UsersIcon: UsersIcon,
   ContactIcon: ContactIcon,
@@ -124,7 +124,7 @@ function SidebarNavItem({
   description: string;
   isActive: boolean;
   collapsed: boolean;
-  IconComponent: ComponentType<{ size?: number; ref?: React.Ref<any> }>;
+  IconComponent: any;
 }) {
   const iconRef = useRef<any>(null);
 
