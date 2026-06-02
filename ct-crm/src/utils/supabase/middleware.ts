@@ -35,13 +35,18 @@ export const updateSession = async (request: NextRequest) => {
   );
 
   // Refresh the session - important for keeping auth state
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data?.user;
+  } catch (err) {
+    console.error("Supabase middleware auth error:", err);
+  }
 
-  // Redirect unauthenticated users to login (except auth pages)
+  // Redirect unauthenticated users to login (except root and auth pages)
   if (
     !user &&
+    request.nextUrl.pathname !== "/" &&
     !request.nextUrl.pathname.startsWith("/login") &&
     !request.nextUrl.pathname.startsWith("/register") &&
     !request.nextUrl.pathname.startsWith("/auth")

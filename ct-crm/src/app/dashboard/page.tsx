@@ -190,43 +190,36 @@ export default function DashboardPage() {
       try {
         const supabase = createClient();
 
-        // 1. Fetch leads
-        const { data: leads, error: leadsError } = await supabase
-          .from("leads")
-          .select("*");
-        if (leadsError) throw leadsError;
+        // Fetch leads, deals, contracts, tasks, activities, and users in parallel
+        const [
+          leadsRes,
+          dealsRes,
+          contractsRes,
+          tasksRes,
+          activitiesRes,
+          usersRes
+        ] = await Promise.all([
+          supabase.from("leads").select("*"),
+          supabase.from("deals").select("*, owner:users(full_name)"),
+          supabase.from("contracts").select("*"),
+          supabase.from("tasks").select("*"),
+          supabase.from("activities").select("*").order("created_at", { ascending: false }).limit(10),
+          supabase.from("users").select("*")
+        ]);
 
-        // 2. Fetch deals
-        const { data: deals, error: dealsError } = await supabase
-          .from("deals")
-          .select("*, owner:users(full_name)");
-        if (dealsError) throw dealsError;
+        if (leadsRes.error) throw leadsRes.error;
+        if (dealsRes.error) throw dealsRes.error;
+        if (contractsRes.error) throw contractsRes.error;
+        if (tasksRes.error) throw tasksRes.error;
+        if (activitiesRes.error) throw activitiesRes.error;
+        if (usersRes.error) throw usersRes.error;
 
-        // 3. Fetch contracts
-        const { data: contracts, error: contractsError } = await supabase
-          .from("contracts")
-          .select("*");
-        if (contractsError) throw contractsError;
-
-        // 4. Fetch tasks
-        const { data: dbTasks, error: tasksError } = await supabase
-          .from("tasks")
-          .select("*");
-        if (tasksError) throw tasksError;
-
-        // 5. Fetch activities
-        const { data: dbActs, error: actsError } = await supabase
-          .from("activities")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(10);
-        if (actsError) throw actsError;
-
-        // 6. Fetch users for team statistics
-        const { data: users, error: usersError } = await supabase
-          .from("users")
-          .select("*");
-        if (usersError) throw usersError;
+        const leads = leadsRes.data;
+        const deals = dealsRes.data;
+        const contracts = contractsRes.data;
+        const dbTasks = tasksRes.data;
+        const dbActs = activitiesRes.data;
+        const users = usersRes.data;
 
         // Calculate dynamic dashboard stats
         const activeLeadsCount = leads?.length || 0;

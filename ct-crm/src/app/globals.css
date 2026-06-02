@@ -147,6 +147,17 @@
   html {
     font-family: "Cause", cursive, system-ui, sans-serif;
   }
+
+  input:not([type="submit"]):not([type="button"]):not([type="checkbox"]), textarea, select {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border-color: var(--card-border);
+  }
+
+  select option {
+    background-color: var(--card-bg-solid);
+    color: var(--text-color);
+  }
 }
 
 /* ========================================
@@ -178,7 +189,6 @@
   filter: blur(80px);
   border-radius: 50%;
   opacity: 0.4;
-  animation: float 10s infinite ease-in-out alternate;
 }
 
 .blob-1 {
@@ -196,7 +206,6 @@
   background: var(--blob-2);
   bottom: -50px;
   right: -50px;
-  animation-delay: -5s;
   transition: background 0.5s ease;
 }
 
@@ -207,7 +216,6 @@
   top: 50%;
   left: 50%;
   opacity: 0.2;
-  animation-delay: -3s;
   transition: background 0.5s ease;
 }
 

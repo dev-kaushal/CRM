@@ -59,23 +59,23 @@ export default function ProspectsPage() {
       setLoading(true);
       const supabase = createClient();
 
-      // Fetch active unqualified leads (NEW, CONTACTED, INTERESTED)
-      const { data: leadsData, error: leadsError } = await supabase
-        .from("leads")
-        .select("id, first_name, last_name, email, company, status, estimated_value")
-        .neq("status", "QUALIFIED")
-        .neq("status", "REJECTED");
-      
-      if (leadsError) throw leadsError;
-      if (leadsData) setUnqualifiedLeads(leadsData);
+      // Fetch unqualified leads and prospects in parallel
+      const [leadsRes, prospectsRes] = await Promise.all([
+        supabase
+          .from("leads")
+          .select("id, first_name, last_name, email, company, status, estimated_value")
+          .neq("status", "QUALIFIED")
+          .neq("status", "REJECTED"),
+        supabase
+          .from("prospects")
+          .select("*, lead:leads(first_name, last_name, company)")
+      ]);
 
-      // Fetch qualified prospects
-      const { data: prospectsData, error: prospectsError } = await supabase
-        .from("prospects")
-        .select("*, lead:leads(first_name, last_name, company)");
+      if (leadsRes.error) throw leadsRes.error;
+      if (prospectsRes.error) throw prospectsRes.error;
 
-      if (prospectsError) throw prospectsError;
-      if (prospectsData) setProspects(prospectsData);
+      if (leadsRes.data) setUnqualifiedLeads(leadsRes.data);
+      if (prospectsRes.data) setProspects(prospectsRes.data);
 
     } catch {
       console.warn("Using high-fidelity BANT fallback data.");
