@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/use-user";
 import { createClient } from "@/utils/supabase/client";
 import { KPICard } from "@/components/dashboard/widgets/kpi-card";
@@ -170,7 +169,6 @@ const DEMO_TEAM = [
 // ============================================
 export default function DashboardPage() {
   const { user, loading } = useUser();
-  const router = useRouter();
   const [dataLoading, setDataLoading] = useState(true);
 
   const [kpiMetrics, setKpiMetrics] = useState<KPIMetric[]>(DEMO_KPI);
@@ -182,9 +180,9 @@ export default function DashboardPage() {
   const [activities, setActivities] = useState<Activity[]>(DEMO_ACTIVITIES);
   const [teamMembers, setTeamMembers] = useState<any[]>(DEMO_TEAM);
 
-  // Fetch real data from Supabase
+  // Fetch real data from Supabase (only once user session is resolved)
   useEffect(() => {
-    if (loading || !user) return;
+    if (loading) return;
 
     const fetchDashboardData = async () => {
       try {
@@ -437,14 +435,7 @@ export default function DashboardPage() {
     };
 
     fetchDashboardData();
-  }, [loading, user]);
-
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login");
-    }
-  }, [loading, user, router]);
+  }, [loading]);
 
   const todayTasks = tasks.filter((t) => {
     const d = new Date(t.due_date);

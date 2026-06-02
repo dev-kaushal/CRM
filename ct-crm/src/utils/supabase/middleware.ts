@@ -34,14 +34,18 @@ export const updateSession = async (request: NextRequest) => {
     }
   );
 
-  // Refresh the session - important for keeping auth state
-  let user = null;
+  // Use getSession() — reads JWT from cookie, NO network round-trip.
+  // This is the key fix for fast dashboard navigation: previously getUser() was
+  // making a Supabase API call on every single page load, causing 300-500ms delay.
+  let session = null;
   try {
-    const { data } = await supabase.auth.getUser();
-    user = data?.user;
+    const { data } = await supabase.auth.getSession();
+    session = data?.session;
   } catch (err) {
     console.error("Supabase middleware auth error:", err);
   }
+
+  const user = session?.user ?? null;
 
   // Redirect unauthenticated users to login (except root and auth pages)
   if (

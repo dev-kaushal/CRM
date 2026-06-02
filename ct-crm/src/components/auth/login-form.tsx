@@ -47,13 +47,29 @@ export function LoginForm() {
       if (error) {
         toast.error(error.message);
       } else {
-        toast.success("Welcome back! Redirecting...");
-        router.push("/dashboard");
-        router.refresh();
+        toast.success("Welcome back!");
+        router.replace("/dashboard");
       }
     } catch {
       toast.error("An unexpected error occurred");
     } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      toast.error(err.message || "Failed to initialize Google login");
       setIsLoading(false);
     }
   };
@@ -380,11 +396,11 @@ export function LoginForm() {
                 <div className="flex-1 h-[1px]" style={{ background: "var(--card-border)", opacity: 0.3 }} />
               </div>
 
-              {/* Social Login Placeholder */}
+              {/* Social Login Button */}
               <button
                 type="button"
                 className="wm-btn wm-btn-neu w-full h-12 rounded-xl text-sm font-semibold"
-                onClick={() => toast.info("Google OAuth coming in Phase 2")}
+                onClick={handleGoogleLogin}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24">
                   <path

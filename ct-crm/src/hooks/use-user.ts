@@ -19,11 +19,12 @@ export function useUser(): UseUserReturn {
   useEffect(() => {
     const supabase = createClient();
 
-    const getUser = async () => {
+    // Use getSession() first — reads from local storage cache, no network round-trip.
+    // This makes the initial auth check instant instead of ~300-500ms.
+    const initUser = async () => {
       try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (error) throw error;
-        setUser(user);
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to get user");
       } finally {
@@ -31,12 +32,13 @@ export function useUser(): UseUserReturn {
       }
     };
 
-    getUser();
+    initUser();
 
-    // Listen for auth state changes
+    // Listen for auth state changes (sign-in, sign-out, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null);
+        setLoading(false);
       }
     );
 
