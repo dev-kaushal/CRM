@@ -16,12 +16,14 @@ import {
   ActivityIcon,
   ChartBarIcon,
   SettingsIcon,
+  LayoutGridIcon,
 } from "@animateicons/react/lucide";
 import { useRef, type ComponentType } from "react";
 
 // Icon mapping — All verified exports from @animateicons/react/lucide
 const ICON_MAP: Record<string, any> = {
   LayoutDashboardIcon: DashboardIcon,
+  LayoutGridIcon: LayoutGridIcon,
   UsersIcon: UsersIcon,
   ContactIcon: ContactIcon,
   TargetIcon: TelescopeIcon,

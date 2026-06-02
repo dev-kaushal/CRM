@@ -5,6 +5,7 @@
 // --- Sidebar Navigation Routes ---
 export const SIDEBAR_ROUTES = [
   { path: "/dashboard", label: "Dashboard", icon: "LayoutDashboardIcon", description: "Core Terminal" },
+  { path: "/dashboard/workspace-engine", label: "Workspace Engine", icon: "LayoutGridIcon", description: "Universal Engine" },
   { path: "/dashboard/leads", label: "Leads", icon: "UsersIcon", description: "Intake Management" },
   { path: "/dashboard/contacts", label: "Contacts", icon: "ContactIcon", description: "Contact Profiles" },
   { path: "/dashboard/prospects", label: "Prospects", icon: "TargetIcon", description: "BANT Qualification" },

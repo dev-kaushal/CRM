@@ -11,7 +11,6 @@ import { DealHealth } from "@/components/dashboard/widgets/deal-health";
 import { TaskCenter } from "@/components/dashboard/widgets/task-center";
 import { ActivityFeed } from "@/components/dashboard/widgets/activity-feed";
 import { TeamPerformance } from "@/components/dashboard/widgets/team-performance";
-import { AIReadySection } from "@/components/dashboard/widgets/ai-ready-section";
 import type { KPIMetric, Activity, Task, TaskType, TaskPriority, TaskStatus } from "@/lib/types";
 
 // ============================================
@@ -525,9 +524,6 @@ export default function DashboardPage() {
 
       {/* ROW 8 — Team Performance */}
       <TeamPerformance members={teamMembers} loading={dataLoading} />
-
-      {/* ROW 10 — AI Ready Section */}
-      <AIReadySection />
     </div>
   );
 }

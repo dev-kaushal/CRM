@@ -107,6 +107,7 @@ All application modules reside within the `/ct-crm/src` directory:
 │   │   │   ├── leads/                # Leads intake hub & import/export engine
 │   │   │   ├── prospects/            # BANT qualification gates
 │   │   │   ├── tasks/                # Calendar grids, task checklists, and schedulers
+│   │   │   ├── workspace-engine/     # Universal Workspace Engine (CRM + Airtable + Excel + AI) dedicated route
 │   │   │   └── settings/             # System customization & dynamic field engines
 │   ├── components/                   # Reusable glassmorphic UI layout widgets
 │   ├── hooks/                        # Custom React hooks (e.g. useUser)
@@ -142,12 +143,12 @@ To support extreme performance and local development:
 ---
 
 ## 7. Interactive User Workflows & Scenario Verification
-To evaluate the Phase 3 features, verify these detailed manual testing scenarios in the frontend control panel:
+To evaluate the Phase 3 features, navigate to the **Workspace Engine** page from the sidebar navigation, and verify these detailed manual testing scenarios in the sub-tabs:
 
 ### Scenario A: Dynamic Field & Calculated Spreadsheet Engine (Pillar 2 & 3)
 * **Goal:** Create a schema field on the fly, edit values, and check dynamic formula recalculations.
 * **Test Flow:**
-  1. Go to **Excel/Airtable Workspace** tab.
+  1. Select the **Excel/Airtable Workspace** tab.
   2. Click **Add Field** on the top right.
   3. Enter column name (e.g. `GST Registration`) and select data type `Text / String`. Click **Create Column**.
   4. Notice the grid inserts the column dynamically. Click any cell inside the column, type a value, and click the checkmark to save it to the live grid row.
@@ -156,7 +157,7 @@ To evaluate the Phase 3 features, verify these detailed manual testing scenarios
 ### Scenario B: Smart CSV Import Platform (Pillar 7)
 * **Goal:** Simulate ingestion mapping.
 * **Test Flow:**
-  1. Open **Smart Import Platform** tab.
+  1. Select the **Smart Import Platform** tab.
   2. Select **Excel / CSV File Upload** card.
   3. Inspect the active schema mapping console (e.g., mapping CSV headers to CT-CRM fields like `Acquisition Channel ──> source`).
   4. Click **Execute Automated Import**. Notice the dynamic loading feedback, and then inspect the spreadsheet grid where new imported lead rows are cleanly appended.
@@ -164,7 +165,7 @@ To evaluate the Phase 3 features, verify these detailed manual testing scenarios
 ### Scenario C: Multi-Agent AI SDR & CRM Pipeline (Pillar 1)
 * **Goal:** Observe automated lead qualification and record creations.
 * **Test Flow:**
-  1. Open **AI SDR Workforce Console** tab.
+  1. Select the **AI SDR Workforce Console** tab.
   2. Click **Trigger AI Workforce**.
   3. Watch the visual pipeline execute:
      * **SDR Agent** ingests and qualifiers lead Vikram Singh via BANT score metrics (92/100 HOT lead).
@@ -176,21 +177,21 @@ To evaluate the Phase 3 features, verify these detailed manual testing scenarios
 ### Scenario D: No-Code Visual Workflows (Pillar 4)
 * **Goal:** Verify automated rules and alerts.
 * **Test Flow:**
-  1. Open **No-Code Workflow Builder** tab.
+  1. Select the **No-Code Workflow Builder** tab.
   2. Inspect active triggers mapping (Trigger ──> Condition IF ──> Action).
   3. Click **Test Flow** on any rule. Verify manual triggers successfully send pop-up confirmation alerts.
 
 ### Scenario E: Cost Proposal & E-Signature Badging (Pillar 10)
 * **Goal:** Edit Statement of Work cost items and cryptographic signs.
 * **Test Flow:**
-  1. Open **Quotation SOW Platform** tab.
+  1. Select the **Quotation SOW Platform** tab.
   2. Edit items quantities or discounts on the left configuration panel. Notice subtotal, 18% standard GST, and grand total recalculate dynamically in the live PDF preview side panel.
   3. Type your signature name in the signature field and click **Apply Digital Signature**. Watch the document terms lock and stamp a verified green cryptographic SHA-256 digital certificate badge.
 
 ### Scenario F: Universal Relationship Graph Nodes (Pillar 5)
 * **Goal:** Inspect connected pipeline entities.
 * **Test Flow:**
-  1. Open **Relationship Visualizer** tab.
+  1. Select the **Relationship Visualizer** tab.
   2. Hover or click on node buttons (`Lead`, `Contact`, `Deal Opportunity`, `Contract SOW`).
   3. Verify the Universal Node Context Analysis card displays real-time AI decision-making criteria (e.g., attribution channels, conversion statistics, e-sign validation hashes).
 
@@ -200,4 +201,21 @@ To evaluate the Phase 3 features, verify these detailed manual testing scenarios
   1. At the top of the command dashboard, locate the **DB Time Travel** slider card.
   2. Drag the slider range indicator back (e.g. from Snapshot V4 to V2).
   3. Watch the Airtable grid and forecasted metric values dynamically rewind in real-time, displaying exactly how the database was structured at that past snapshot timestamp!
+
+### Scenario H: Universal Command Bar & Search (Phase 3 Extension)
+* **Goal:** Open hotkey console, launch commands, and scan entity records.
+* **Test Flow:**
+  1. Press `CTRL+K` or `CMD+K` anywhere on the dashboard.
+  2. Notice the glassmorphic overlay appears.
+  3. Type `/view-kanban` or `/view-gallery` and press enter to switch active views instantly.
+  4. Type a search term (e.g. `Vikram`) to see matching Leads and Agreements. Clicking a result navigates directly to the record.
+
+### Scenario I: Advanced Filters, Saved Views & Master Modal (Phase 3 Extension)
+* **Goal:** Set nested operators, save view state presets, and edit detailed properties.
+* **Test Flow:**
+  1. Select the **Excel/Airtable Workspace** tab and click **Filters**.
+  2. Add conditions (e.g., `Est. Value > 300,000`), choose `AND` or `OR` operator, type a preset name (e.g. `VIP Leads`), and click **Save Preset**.
+  3. Select `VIP Leads` from the **Saved Views** dropdown to apply the criteria later.
+  4. Click the detail expansion icon next to a lead name. The **Master Record Modal** pops up.
+  5. Edit fields in the properties grid (e.g., GST or PAN numbers), post Pinned/Private notes, and click **Mark Close-Won** to trigger SDR workflows.
 

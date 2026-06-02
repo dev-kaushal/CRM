@@ -281,12 +281,14 @@ export default function TasksPage() {
             </thead>
             <tbody style={{ color: "var(--text-color)" }}>
               {filtered.map(task => {
-                const StatusIcon = STATUS_CONFIG[task.status].icon;
+                const normalizedStatus = (task.status || "pending").toLowerCase();
+                const statusCfg = STATUS_CONFIG[normalizedStatus] || STATUS_CONFIG.pending;
+                const StatusIcon = statusCfg.icon;
                 return (
                   <tr key={task.id} className="border-b transition-colors" style={{ borderColor: "var(--card-border)", opacity: task.status === "cancelled" ? 0.5 : 1 }}>
                     <td className="p-4">
                       <button onClick={() => handleUpdateStatus(task.id, task.status === "completed" ? "pending" : "completed")} className="transition-transform hover:scale-125">
-                        <StatusIcon size={16} style={{ color: STATUS_CONFIG[task.status].color }} />
+                        <StatusIcon size={16} style={{ color: statusCfg.color }} />
                       </button>
                     </td>
                     <td className="p-4">
@@ -307,8 +309,8 @@ export default function TasksPage() {
                     </td>
                     <td className="p-4 text-muted-foreground font-semibold">{task.assigned_to}</td>
                     <td className="p-4">
-                      <span className="px-2 py-0.5 rounded-lg text-[9px] font-extrabold uppercase tracking-wide" style={{ background: STATUS_CONFIG[task.status].color + "20", color: STATUS_CONFIG[task.status].color }}>
-                        {STATUS_CONFIG[task.status].label}
+                      <span className="px-2 py-0.5 rounded-lg text-[9px] font-extrabold uppercase tracking-wide" style={{ background: statusCfg.color + "20", color: statusCfg.color }}>
+                        {statusCfg.label}
                       </span>
                     </td>
                     <td className="p-4 text-right">
