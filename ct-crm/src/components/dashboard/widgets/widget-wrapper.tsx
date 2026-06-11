@@ -31,11 +31,11 @@ export function WidgetWrapper({
 }: WidgetWrapperProps) {
   return (
     <div
-      className={`rounded-2xl transition-all duration-300 hover:shadow-lg ${className}`}
+      className={`rounded-2xl hover:shadow-lg ${className}`}
       style={{
         background: "var(--card-bg)",
         border: "1px solid var(--card-border)",
-        backdropFilter: "blur(12px)",
+        transition: "box-shadow 0.15s ease",
       }}
     >
       {/* Header */}

@@ -179,10 +179,8 @@ export default function DashboardPage() {
   const [activities, setActivities] = useState<Activity[]>(DEMO_ACTIVITIES);
   const [teamMembers, setTeamMembers] = useState<any[]>(DEMO_TEAM);
 
-  // Fetch real data from Supabase (only once user session is resolved)
+  // Fetch real data from Supabase (kick off immediately, don't wait for auth loading)
   useEffect(() => {
-    if (loading) return;
-
     const fetchDashboardData = async () => {
       try {
         const supabase = createClient();
@@ -434,7 +432,7 @@ export default function DashboardPage() {
     };
 
     fetchDashboardData();
-  }, [loading]);
+  }, []);
 
   const todayTasks = tasks.filter((t) => {
     const d = new Date(t.due_date);

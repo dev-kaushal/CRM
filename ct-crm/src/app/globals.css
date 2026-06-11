@@ -141,7 +141,7 @@
     font-optical-sizing: auto;
     min-height: 100vh;
     overflow-x: hidden;
-    transition: background-color 0.5s ease, color 0.5s ease;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   html {
@@ -186,9 +186,10 @@
 
 .blob {
   position: absolute;
-  filter: blur(80px);
+  filter: blur(60px);
   border-radius: 50%;
-  opacity: 0.4;
+  opacity: 0.3;
+  will-change: auto;
 }
 
 .blob-1 {
@@ -647,6 +648,22 @@
     opacity: 1;
     transform: translateX(0);
   }
+}
+
+/* Smooth transition when switching between Table/Kanban/Grid views */
+@keyframes viewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.view-transition {
+  animation: viewFadeIn 0.3s ease;
 }
 
 @keyframes pulse-glow {

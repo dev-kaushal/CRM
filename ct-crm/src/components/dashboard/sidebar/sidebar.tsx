@@ -5,35 +5,34 @@ import Link from "next/link";
 import { useSidebar } from "@/hooks/use-sidebar";
 import { SIDEBAR_ROUTES } from "@/lib/constants";
 import {
-  DashboardIcon,
-  UsersIcon,
-  ContactIcon,
-  TelescopeIcon,
-  HandCoinsIcon,
-  ClipboardIcon,
-  UserCheckIcon,
-  CheckCheckIcon,
-  ActivityIcon,
-  ChartBarIcon,
-  SettingsIcon,
-  LayoutGridIcon,
-} from "@animateicons/react/lucide";
-import { useRef, type ComponentType } from "react";
+  LayoutDashboard,
+  LayoutGrid,
+  Users,
+  Contact,
+  Telescope,
+  HandCoins,
+  Clipboard,
+  UserCheck,
+  CheckCheck,
+  Activity,
+  BarChart,
+  Settings,
+} from "lucide-react";
 
-// Icon mapping — All verified exports from @animateicons/react/lucide
+// Icon mapping — lightweight lucide-react (no animation overhead)
 const ICON_MAP: Record<string, any> = {
-  LayoutDashboardIcon: DashboardIcon,
-  LayoutGridIcon: LayoutGridIcon,
-  UsersIcon: UsersIcon,
-  ContactIcon: ContactIcon,
-  TargetIcon: TelescopeIcon,
-  HandshakeIcon: HandCoinsIcon,
-  FileTextIcon: ClipboardIcon,
-  BuildingIcon: UserCheckIcon,
-  CheckSquareIcon: CheckCheckIcon,
-  ActivityIcon: ActivityIcon,
-  BarChartIcon: ChartBarIcon,
-  SettingsIcon: SettingsIcon,
+  LayoutDashboardIcon: LayoutDashboard,
+  LayoutGridIcon: LayoutGrid,
+  UsersIcon: Users,
+  ContactIcon: Contact,
+  TargetIcon: Telescope,
+  HandshakeIcon: HandCoins,
+  FileTextIcon: Clipboard,
+  BuildingIcon: UserCheck,
+  CheckSquareIcon: CheckCheck,
+  ActivityIcon: Activity,
+  BarChartIcon: BarChart,
+  SettingsIcon: Settings,
 };
 
 export function Sidebar() {
@@ -42,11 +41,13 @@ export function Sidebar() {
 
   return (
     <aside
-      className="fixed left-0 top-0 bottom-0 z-40 flex flex-col transition-all duration-300 ease-in-out"
+      className="fixed left-0 top-0 bottom-0 z-40 flex flex-col"
       style={{
         width: collapsed ? "68px" : "252px",
         background: "var(--card-bg-solid)",
         borderRight: "1px solid var(--card-border)",
+        transition: "width 0.25s ease",
+        willChange: "width",
       }}
     >
       {/* Brand Logo */}
@@ -78,7 +79,7 @@ export function Sidebar() {
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2.5 space-y-0.5">
         {SIDEBAR_ROUTES.map((route) => {
           const isActive = pathname === route.path;
-          const IconComponent = ICON_MAP[route.icon] || UsersIcon;
+          const IconComponent = ICON_MAP[route.icon] || Users;
 
           return (
             <SidebarNavItem
@@ -128,18 +129,16 @@ function SidebarNavItem({
   collapsed: boolean;
   IconComponent: any;
 }) {
-  const iconRef = useRef<any>(null);
-
   return (
     <Link
       href={href}
-      className="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 overflow-hidden"
+      prefetch={true}
+      className="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 overflow-hidden"
       style={{
         background: isActive ? "var(--accent)" : "transparent",
         color: isActive ? "var(--text-color)" : "var(--muted-foreground)",
+        transition: "background 0.15s ease, color 0.15s ease",
       }}
-      onMouseEnter={() => iconRef.current?.startAnimation()}
-      onMouseLeave={() => iconRef.current?.stopAnimation()}
       title={collapsed ? label : undefined}
     >
       {/* Active indicator bar */}
@@ -151,13 +150,13 @@ function SidebarNavItem({
       )}
 
       <div className="flex items-center justify-center w-5 h-5 shrink-0">
-        <IconComponent ref={iconRef} size={18} />
+        <IconComponent size={18} strokeWidth={isActive ? 2.5 : 2} />
       </div>
 
       {!collapsed && (
         <div className="flex flex-col overflow-hidden min-w-0">
           <span
-            className="text-sm font-medium truncate transition-colors"
+            className="text-sm font-medium truncate"
             style={{ color: isActive ? "var(--text-color)" : undefined }}
           >
             {label}
@@ -171,12 +170,13 @@ function SidebarNavItem({
       {/* Hover tooltip for collapsed mode */}
       {collapsed && (
         <div
-          className="absolute left-full ml-2 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50"
+          className="absolute left-full ml-2 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 z-50"
           style={{
             background: "var(--card-bg-solid)",
             border: "1px solid var(--card-border)",
             color: "var(--text-color)",
             boxShadow: "var(--glass-shadow)",
+            transition: "opacity 0.1s ease",
           }}
         >
           {label}

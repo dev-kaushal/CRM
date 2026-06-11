@@ -5,12 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSidebar } from "@/hooks/use-sidebar";
 import { useUser } from "@/hooks/use-user";
 import { useTheme } from "@/components/theme-provider";
-import {
-  SunIcon,
-  MoonIcon,
-  SearchIcon,
-  BellIcon,
-} from "@animateicons/react/lucide";
+import { Sun, Moon, Search, Bell } from "lucide-react";
 
 export function Header() {
   const { collapsed, toggle } = useSidebar();
@@ -22,8 +17,6 @@ export function Header() {
   const [showSearch, setShowSearch] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const quickActionsRef = useRef<HTMLDivElement>(null);
-  const searchIconRef = useRef<any>(null);
-  const bellIconRef = useRef<any>(null);
 
   // Keyboard shortcut: CMD+K for search
   useEffect(() => {
@@ -58,7 +51,7 @@ export function Header() {
 
   const handleSignOut = async () => {
     await signOut();
-    router.push("/login");
+    router.push("/");
     router.refresh();
   };
 
@@ -78,15 +71,14 @@ export function Header() {
         style={{
           background: "var(--card-bg-solid)",
           borderBottom: "1px solid var(--card-border)",
-          backdropFilter: "blur(12px)",
         }}
       >
-        {/* Left: Collapse + Breadcrumb */}
+        {/* Left: Collapse + Search */}
         <div className="flex items-center gap-3">
           <button
             onClick={toggle}
-            className="w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-105"
-            style={{ background: "var(--accent)", color: "var(--text-color)" }}
+            className="w-9 h-9 rounded-lg flex items-center justify-center hover:opacity-80 active:scale-95"
+            style={{ background: "var(--accent)", color: "var(--text-color)", transition: "opacity 0.15s ease" }}
             aria-label="Toggle Sidebar"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -109,16 +101,15 @@ export function Header() {
           {/* Search trigger */}
           <button
             onClick={() => setShowSearch(true)}
-            onMouseEnter={() => searchIconRef.current?.startAnimation()}
-            onMouseLeave={() => searchIconRef.current?.stopAnimation()}
-            className="hidden md:flex items-center gap-2 h-9 pl-3 pr-3 rounded-xl text-sm transition-all hover:scale-[1.02]"
+            className="hidden md:flex items-center gap-2 h-9 pl-3 pr-3 rounded-xl text-sm hover:opacity-80"
             style={{
               background: "var(--accent)",
               color: "var(--muted-foreground)",
               border: "1px solid var(--card-border)",
+              transition: "opacity 0.15s ease",
             }}
           >
-            <SearchIcon ref={searchIconRef} size={15} />
+            <Search size={15} />
             <span>Search...</span>
             <kbd
               className="ml-4 text-[10px] font-semibold px-1.5 py-0.5 rounded"
@@ -135,8 +126,8 @@ export function Header() {
           <div className="relative" ref={quickActionsRef}>
             <button
               onClick={() => setShowQuickActions(!showQuickActions)}
-              className="w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-105 text-sm font-bold"
-              style={{ background: "var(--graph-to)", color: "#0a0a0a" }}
+              className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold hover:opacity-80 active:scale-95"
+              style={{ background: "var(--graph-to)", color: "#0a0a0a", transition: "opacity 0.15s ease" }}
               aria-label="Quick Actions"
             >
               +
@@ -154,8 +145,8 @@ export function Header() {
                 ].map((action) => (
                   <button
                     key={action.label}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors text-left hover:bg-accent"
-                    style={{ color: "var(--text-color)" }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-accent"
+                    style={{ color: "var(--text-color)", transition: "background 0.1s ease" }}
                     onClick={() => setShowQuickActions(false)}
                   >
                     <span>{action.emoji}</span>
@@ -168,13 +159,11 @@ export function Header() {
 
           {/* Notifications */}
           <button
-            onMouseEnter={() => bellIconRef.current?.startAnimation()}
-            onMouseLeave={() => bellIconRef.current?.stopAnimation()}
-            className="relative w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-105"
-            style={{ background: "var(--accent)", color: "var(--text-color)" }}
+            className="relative w-9 h-9 rounded-lg flex items-center justify-center hover:opacity-80"
+            style={{ background: "var(--accent)", color: "var(--text-color)", transition: "opacity 0.15s ease" }}
             aria-label="Notifications"
           >
-            <BellIcon ref={bellIconRef} size={18} />
+            <Bell size={18} />
             <span
               className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold"
               style={{ background: "#ef4444", color: "#fff" }}
@@ -186,19 +175,19 @@ export function Header() {
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
-            className="w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-105"
-            style={{ background: "var(--accent)", color: "var(--text-color)" }}
+            className="w-9 h-9 rounded-lg flex items-center justify-center hover:opacity-80 active:scale-95"
+            style={{ background: "var(--accent)", color: "var(--text-color)", transition: "opacity 0.15s ease" }}
             aria-label="Toggle Theme"
           >
-            {theme === "dark" ? <SunIcon size={18} /> : <MoonIcon size={18} />}
+            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
 
           {/* User Menu */}
           <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-xl transition-all hover:scale-[1.02]"
-              style={{ background: "var(--accent)", border: "1px solid var(--card-border)" }}
+              className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-xl hover:opacity-80"
+              style={{ background: "var(--accent)", border: "1px solid var(--card-border)", transition: "opacity 0.15s ease" }}
             >
               <div
                 className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
@@ -226,14 +215,14 @@ export function Header() {
                 </div>
                 <div className="py-1">
                   <button
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors text-left hover:bg-accent"
-                    style={{ color: "var(--text-color)" }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-accent"
+                    style={{ color: "var(--text-color)", transition: "background 0.1s ease" }}
                   >
                     <span>👤</span> Profile
                   </button>
                   <button
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors text-left hover:bg-accent"
-                    style={{ color: "var(--text-color)" }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-accent"
+                    style={{ color: "var(--text-color)", transition: "background 0.1s ease" }}
                     onClick={() => { setShowUserMenu(false); router.push("/dashboard/settings"); }}
                   >
                     <span>⚙️</span> Settings
@@ -242,8 +231,8 @@ export function Header() {
                 <div style={{ borderTop: "1px solid var(--card-border)" }}>
                   <button
                     onClick={handleSignOut}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors text-left hover:bg-destructive/10"
-                    style={{ color: "#ef4444" }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-destructive/10"
+                    style={{ color: "#ef4444", transition: "background 0.1s ease" }}
                   >
                     <span>🚪</span> Sign Out
                   </button>
@@ -263,10 +252,7 @@ export function Header() {
             style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}
           >
             <div className="flex items-center gap-3 px-4 h-14" style={{ borderBottom: "1px solid var(--card-border)" }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted-foreground)" }}>
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.3-4.3" />
-              </svg>
+              <Search size={18} style={{ color: "var(--muted-foreground)" }} />
               <input
                 autoFocus
                 type="text"

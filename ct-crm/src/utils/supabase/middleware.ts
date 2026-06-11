@@ -57,15 +57,25 @@ export const updateSession = async (request: NextRequest) => {
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    // Preserve the intended destination so we can redirect back after login
+    url.searchParams.set("from", request.nextUrl.pathname);
     return NextResponse.redirect(url);
   }
 
-  // Redirect authenticated users away from auth pages
+  // Redirect authenticated users away from auth pages → dashboard
   if (
     user &&
     (request.nextUrl.pathname.startsWith("/login") ||
       request.nextUrl.pathname.startsWith("/register"))
   ) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    url.search = ""; // clear any ?from= params
+    return NextResponse.redirect(url);
+  }
+
+  // Redirect authenticated users visiting the landing page → dashboard
+  if (user && request.nextUrl.pathname === "/") {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);

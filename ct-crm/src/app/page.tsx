@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
 import { useTheme } from "@/components/theme-provider";
 import "./landing.css";
 
@@ -34,7 +36,9 @@ import {
 
 export default function Home() {
   const { theme, toggleTheme } = useTheme();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // 1. Hero Stepper Stage
   const [activeHeroStage, setActiveHeroStage] = useState("lead");
@@ -58,6 +62,11 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true);
+    // Check auth state
+    const sb = createClient();
+    sb.auth.getSession().then(({ data }) => {
+      setIsLoggedIn(!!data.session?.user);
+    });
   }, []);
 
   // Trust numbers intersection trigger
@@ -278,8 +287,17 @@ export default function Home() {
             >
               {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <Link href="/login" className="wm-btn wm-btn-neu" style={{ padding: "0.5rem 1rem", fontSize: "0.8rem" }}>Login</Link>
-            <Link href="/register" className="wm-btn wm-btn-storm" style={{ padding: "0.5rem 1.2rem", fontSize: "0.8rem" }}><span>Sign Up</span></Link>
+            {isLoggedIn ? (
+              <Link href="/dashboard" className="wm-btn wm-btn-storm" style={{ padding: "0.5rem 1.2rem", fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <span>Go to Dashboard</span>
+                <ArrowRight size={14} />
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="wm-btn wm-btn-neu" style={{ padding: "0.5rem 1rem", fontSize: "0.8rem" }}>Login</Link>
+                <Link href="/register" className="wm-btn wm-btn-storm" style={{ padding: "0.5rem 1.2rem", fontSize: "0.8rem" }}><span>Sign Up</span></Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -294,7 +312,14 @@ export default function Home() {
           
           <div className="hero-ctas">
             <div className="relative inline-block group">
-              <Link href="/register" className="wm-btn wm-btn-storm" id="hero-cta-trial"><span>Start Free Trial</span></Link>
+              {isLoggedIn ? (
+                <Link href="/dashboard" className="wm-btn wm-btn-storm" id="hero-cta-trial" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span>Go to Dashboard</span>
+                  <ArrowRight size={16} />
+                </Link>
+              ) : (
+                <Link href="/register" className="wm-btn wm-btn-storm" id="hero-cta-trial"><span>Start Free Trial</span></Link>
+              )}
             </div>
             <div className="relative inline-block group">
               <Link href="#showcase" className="wm-btn wm-btn-neu" id="hero-cta-demo">

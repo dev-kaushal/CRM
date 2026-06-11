@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -o /dev/null -w \"leads:%{http_code}\\\\n\" http://localhost:3001/dashboard/leads --max-time 20 -L)"
+    ]
+  }
+}

@@ -80,9 +80,12 @@ export default function DealsPage() {
   }, []);
 
   const handleUpdateStage = async (id: string, nextStage: Deal["stage"]) => {
+    const prob = STAGE_MULTIPLIERS[nextStage];
+    // Optimistic update — instant response
+    setDeals(prev => prev.map(d => d.id === id ? { ...d, stage: nextStage, probability: prob } : d));
+    
     try {
       const supabase = createClient();
-      const prob = STAGE_MULTIPLIERS[nextStage];
       const { error } = await supabase
         .from("deals")
         .update({
@@ -94,9 +97,7 @@ export default function DealsPage() {
       
       if (error) throw error;
       toast.success(`Deal shifted to ${nextStage}`);
-      fetchDeals();
     } catch {
-      setDeals(prev => prev.map(d => d.id === id ? { ...d, stage: nextStage, probability: STAGE_MULTIPLIERS[nextStage] } : d));
       toast.success(`[Offline/Demo] Deal shifted to ${nextStage}`);
     }
   };
@@ -351,7 +352,7 @@ export default function DealsPage() {
                   </select>
                 </div>
 
-                <div className="flex gap-3 pt-6 border-t animate-pulse" style={{ borderColor: "var(--card-border)" }}>
+                <div className="flex gap-3 pt-6 border-t" style={{ borderColor: "var(--card-border)" }}>
                   <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 h-11 rounded-xl border font-semibold transition-colors hover:bg-[rgba(0,0,0,0.02)]" style={{ borderColor: "var(--card-border)", color: "var(--text-color)" }}>Cancel</button>
                   <button type="submit" disabled={submitting} className="flex-1 h-11 rounded-xl font-semibold transition-opacity" style={{ background: "var(--graph-to)", color: "#0a0a0a", opacity: submitting ? 0.7 : 1 }}>
                     {submitting ? "Logging Deal..." : "Log Opportunity"}

@@ -69,7 +69,10 @@ export default function ContractsPage() {
     if (nextStatus === "SIGNED") {
       updates.signed_at = new Date().toISOString();
     }
-    
+
+    // Optimistic update — instant response
+    setContracts(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+
     try {
       const supabase = createClient();
       const { error } = await supabase
@@ -82,9 +85,7 @@ export default function ContractsPage() {
       
       if (error) throw error;
       toast.success(`Contract status updated to ${nextStatus}`);
-      fetchContracts();
     } catch {
-      setContracts(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
       toast.success(`[Offline/Demo] Contract updated to ${nextStatus}`);
     }
   };

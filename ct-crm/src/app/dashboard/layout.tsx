@@ -21,7 +21,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg-color)" }}>
-      {/* Ambient blobs */}
+      {/* Ambient blobs — static, no animation to avoid GPU jank */}
       <div className="background-animation">
         <div className="blob blob-1" />
         <div className="blob blob-2" />
@@ -30,13 +30,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <Sidebar />
 
-      {/* Main area */}
+      {/* Main area — use will-change and fast transition */}
       <div
-        className="flex flex-col min-h-screen transition-all duration-300"
-        style={{ marginLeft: collapsed ? "68px" : "252px" }}
+        className="flex flex-col min-h-screen"
+        style={{
+          marginLeft: collapsed ? "68px" : "252px",
+          transition: "margin-left 0.25s ease",
+          willChange: "margin-left",
+        }}
       >
         <Header />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 p-6">
           {children}
         </main>
       </div>

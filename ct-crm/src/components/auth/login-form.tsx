@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useTheme } from "@/components/theme-provider";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
@@ -48,7 +49,9 @@ export function LoginForm() {
         toast.error(error.message);
       } else {
         toast.success("Welcome back!");
-        router.replace("/dashboard");
+        // Redirect to intended page (from ?from= param) or dashboard
+        const from = searchParams.get("from");
+        router.replace(from && from.startsWith("/") && !from.startsWith("/login") && !from.startsWith("/register") ? from : "/dashboard");
       }
     } catch {
       toast.error("An unexpected error occurred");
