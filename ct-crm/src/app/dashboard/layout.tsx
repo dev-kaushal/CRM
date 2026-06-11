@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { SidebarProvider, useSidebar } from "@/hooks/use-sidebar";
 import { Sidebar } from "@/components/dashboard/sidebar/sidebar";
 import { Header } from "@/components/dashboard/header/header";
@@ -18,6 +19,7 @@ export default function DashboardLayout({
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar();
+  const pathname = usePathname();
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg-color)" }}>
@@ -41,7 +43,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       >
         <Header />
         <main className="flex-1 p-6">
-          {children}
+          <div key={pathname} className="t-route">
+            {children}
+          </div>
         </main>
       </div>
     </div>

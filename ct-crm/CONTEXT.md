@@ -67,3 +67,19 @@ DATABASE_URL=postgresql://neondb_owner:...@.../neondb?sslmode=require&channel_bi
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 ```
+
+## Performance: Auth Lookups
+`getOrCreateDbUser()` / `getCurrentDbUser()` (`src/server/auth.ts`) resolve the Clerk user id via `auth()` (local JWT decode, no network call) instead of `currentUser()` (Clerk Backend API round trip). `currentUser()` is now only called once, on first-ever login, to provision a new `organizations`/`users` row. Since all server-action call sites go through `getOrCreateDbUser()`, this removes a network round trip from every navigation and button click.
+
+## UI Animation System (transitions-dev)
+`src/app/globals.css` includes a themed subset of the `.agents/skills/transitions-dev` snippets, wired to existing CT-CRM CSS vars (`--accent`, `--card-bg-solid`, `--text-color`, `--graph-to`, `--glass-shadow`, etc.), all with `prefers-reduced-motion` guards:
+- `.t-route` — page-route mount transition (rise + blur + fade), applied via a `key={pathname}` wrapper in `src/app/dashboard/layout.tsx`
+- `.t-modal-backdrop` / `.t-modal-pop` — mount-in animation for centered dialogs (`{condition && <div>...}` pattern)
+- `.t-drawer-panel` — slide-in animation for right-side drawers (View / Create-Edit panels)
+- `.t-tabs` / `.t-tab` / `.t-tabs-pill` — sliding-pill segmented control (16-tabs-sliding), used by `src/components/dashboard/view-switcher.tsx`
+- `.t-skel*` / `.is-pulsing` — skeleton-reveal pulse; `dashboard/loading.tsx` uses `.is-pulsing`
+- `.t-modal` (06-modal verbatim) — kept for future use with a proper open/close state machine
+
+`src/components/dashboard/view-switcher.tsx` is a shared `ViewSwitcher` component (sliding-pill tab bar) used by the Leads Table/Kanban/Grid switcher and reusable on any page with a segmented view control.
+
+Reference pattern applied to `src/app/dashboard/leads/page.tsx` and `src/app/dashboard/prospects/page.tsx`: `ViewSwitcher` (Leads only — Prospects has a single table view), `.t-modal-backdrop`/`.t-modal-pop` on all centered modals, `.t-modal-backdrop`/`.t-drawer-panel` on side drawers, `.view-transition` on the table container.

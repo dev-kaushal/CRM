@@ -13,7 +13,7 @@ import {
   fetchLeadEnrichment, upsertLeadEnrichment, logAIInteraction,
   createWhatsAppMessage, logPrompt,
   fetchPipelineSnapshot, fetchLeadIntelligence,
-} from "@/lib/supabase-ai";
+} from "@/lib/ai-data";
 import { 
   Sparkles, Bot, MessageSquare, Send, Calendar, ShieldCheck, 
   TrendingUp, Users, DollarSign, Activity, AlertTriangle, Play,
@@ -922,7 +922,6 @@ export function AIReadySection() {
   };
 
   const handleTriggerWorkflow = async (wfId: string, wfNameStr: string) => {
-    // Write workflow run to Supabase
     try {
       if (wfId && !wfId.startsWith("w-")) {
         await createWorkflowRun(wfId, rows[0]?.id || "00000000-0000-0000-0000-000000000000", [

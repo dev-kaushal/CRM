@@ -11,6 +11,7 @@ import {
   addLeadNote,
   createLeadReminder,
 } from "@/server/leads";
+import { ViewSwitcher } from "@/components/dashboard/view-switcher";
 import { toast } from "sonner";
 import {
   Search, Filter, Plus, Table2, Kanban as KanbanIcon, Grid,
@@ -404,13 +405,15 @@ export default function LeadsPage() {
         </div>
         <div className="flex items-center gap-2">
           {view === "Table" && <Btn ghost onClick={() => setColumnEditorOpen(true)} icon={<SlidersHorizontal size={13} />}>Columns</Btn>}
-          <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: "rgba(0,0,0,.05)", border: "1px solid var(--card-border)" }}>
-            {[{ id: "Table", icon: <Table2 size={13} /> }, { id: "Kanban", icon: <KanbanIcon size={13} /> }, { id: "Grid", icon: <Grid size={13} /> }].map(item => (
-              <button key={item.id} onClick={() => setView(item.id as any)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: view === item.id ? "var(--card-bg-solid)" : "transparent", color: view === item.id ? "var(--text-color)" : "var(--muted-foreground)", transition: "background .15s" }}>
-                {item.icon}{item.id}
-              </button>
-            ))}
-          </div>
+          <ViewSwitcher
+            value={view}
+            onChange={(id) => setView(id as "Table" | "Kanban" | "Grid")}
+            options={[
+              { id: "Table", label: "Table", icon: <Table2 size={13} /> },
+              { id: "Kanban", label: "Kanban", icon: <KanbanIcon size={13} /> },
+              { id: "Grid", label: "Grid", icon: <Grid size={13} /> },
+            ]}
+          />
         </div>
       </div>
 
@@ -596,8 +599,8 @@ export default function LeadsPage() {
       {/* ── VIEW DETAILS DRAWER ── */}
       {viewLead && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setViewLead(null)} />
-          <div className="relative ml-auto h-full w-full max-w-[520px] flex flex-col overflow-hidden shadow-2xl" style={{ background: "var(--card-bg-solid)", borderLeft: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 t-modal-backdrop" onClick={() => setViewLead(null)} />
+          <div className="relative ml-auto h-full w-full max-w-[520px] flex flex-col overflow-hidden shadow-2xl t-drawer-panel" style={{ background: "var(--card-bg-solid)", borderLeft: "1px solid var(--card-border)" }}>
             {/* Drawer header */}
             <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom: "1px solid var(--card-border)" }}>
               <div className="flex items-center gap-2.5">
@@ -683,8 +686,8 @@ export default function LeadsPage() {
       {/* ── CREATE / EDIT DRAWER ── */}
       {(isCreateOpen || editLead) && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/50" onClick={() => { setIsCreateOpen(false); setEditLead(null); }} />
-          <div className="relative ml-auto h-full w-full max-w-[520px] overflow-y-auto shadow-2xl" style={{ background: "var(--card-bg-solid)", borderLeft: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 t-modal-backdrop" onClick={() => { setIsCreateOpen(false); setEditLead(null); }} />
+          <div className="relative ml-auto h-full w-full max-w-[520px] overflow-y-auto shadow-2xl t-drawer-panel" style={{ background: "var(--card-bg-solid)", borderLeft: "1px solid var(--card-border)" }}>
             <form onSubmit={editLead ? handleEditLead : handleCreateLead}>
               <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4" style={{ background: "var(--card-bg-solid)", borderBottom: "1px solid var(--card-border)" }}>
                 <h2 className="cause-font text-lg font-bold" style={{ color: "var(--text-color)" }}>{editLead ? "Edit Lead" : "Create New Lead"}</h2>
@@ -756,8 +759,8 @@ export default function LeadsPage() {
       {/* ── DELETE MODAL ── */}
       {deleteLead && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteLead(null)} />
-          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setDeleteLead(null)} />
+          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl t-modal-pop" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
             <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(239,68,68,.1)" }}><Trash2 size={22} style={{ color: "#ef4444" }} /></div>
             <h3 className="text-base font-bold text-center mb-1" style={{ color: "var(--text-color)" }}>Delete Lead?</h3>
             <p className="text-sm text-muted-foreground text-center mb-5"><strong style={{ color: "var(--text-color)" }}>{deleteLead.first_name} {deleteLead.last_name}</strong> from <strong style={{ color: "var(--text-color)" }}>{deleteLead.company || "Unknown"}</strong> will be permanently removed.</p>
@@ -772,8 +775,8 @@ export default function LeadsPage() {
       {/* ── ADD NOTE MODAL ── */}
       {noteForLead && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setNoteForLead(null)} />
-          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setNoteForLead(null)} />
+          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl t-modal-pop" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-bold" style={{ color: "var(--text-color)" }}>Add Note — {noteForLead.first_name} {noteForLead.last_name}</h3>
               <button onClick={() => setNoteForLead(null)} className="hover:opacity-70"><X size={15} /></button>
@@ -790,8 +793,8 @@ export default function LeadsPage() {
       {/* ── SET REMINDER MODAL ── */}
       {reminderLead && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setReminderLead(null)} />
-          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setReminderLead(null)} />
+          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl t-modal-pop" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
             <div className="flex items-center justify-between mb-5">
               <div><h3 className="text-sm font-bold" style={{ color: "var(--text-color)" }}>Set Reminder</h3><p className="text-xs text-muted-foreground">For: {reminderLead.first_name} {reminderLead.last_name}</p></div>
               <button onClick={() => setReminderLead(null)} className="hover:opacity-70"><X size={15} /></button>
@@ -819,8 +822,8 @@ export default function LeadsPage() {
       {/* ── COLUMN EDITOR ── */}
       {columnEditorOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setColumnEditorOpen(false)} />
-          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setColumnEditorOpen(false)} />
+          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl t-modal-pop" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
             <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold" style={{ color: "var(--text-color)" }}><SlidersHorizontal size={14} className="inline mr-1.5" />Customise Columns</h3><button onClick={() => setColumnEditorOpen(false)} className="hover:opacity-70"><X size={14} /></button></div>
             <p className="text-xs text-muted-foreground mb-4">Toggle columns in the table view.</p>
             <div className="space-y-1.5">

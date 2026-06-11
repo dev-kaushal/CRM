@@ -60,7 +60,10 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/dashboard/leads)",
       "Bash(curl -s -D - -o /dev/null http://localhost:3000/dashboard/leads)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/login)",
-      "Bash(curl -s -D - -o /dev/null http://localhost:3000/dashboard/prospects)"
+      "Bash(curl -s -D - -o /dev/null http://localhost:3000/dashboard/prospects)",
+      "PowerShell(Get-CimInstance Win32_Process -Filter \"Name='node.exe'\")",
+      "PowerShell(Get-NetTCPConnection -State Listen | Where-Object {$_.LocalPort -ge 3000 -and $_.LocalPort -le 3010} | Select-Object LocalPort, OwningProcess)",
+      "PowerShell(Stop-Process -Id 11988,18428,19724 -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1; Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object {$_.LocalPort -ge 3000 -and $_.LocalPort -le 3010} | Select-Object LocalPort, OwningProcess)"
     ],
     "additionalDirectories": [
       "c:\\Users\\MSn\\Documents\\Downloads\\My lab\\test\\sd"

@@ -285,7 +285,7 @@ export default function ProspectsPage() {
           <button onClick={() => { resetForm(); setIsCreateOpen(true); }} className="mt-4 h-9 px-4 rounded-xl text-xs font-semibold flex items-center gap-1.5" style={{ background: "var(--graph-to)", color: "#0a0a0a" }}><Plus size={14} />New Prospect</button>
         </div>
       ) : (
-        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "var(--card-border)" }}>
+        <div className="rounded-2xl border overflow-hidden view-transition" style={{ borderColor: "var(--card-border)" }}>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs min-w-[900px]" style={{ background: "var(--card-bg)" }}>
               <thead>
@@ -369,8 +369,8 @@ export default function ProspectsPage() {
       {/* ── VIEW DRAWER ── */}
       {viewP && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setViewP(null)} />
-          <div className="relative ml-auto h-full w-full max-w-[520px] flex flex-col overflow-hidden shadow-2xl" style={{ background: "var(--card-bg-solid)", borderLeft: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 t-modal-backdrop" onClick={() => setViewP(null)} />
+          <div className="relative ml-auto h-full w-full max-w-[520px] flex flex-col overflow-hidden shadow-2xl t-drawer-panel" style={{ background: "var(--card-bg-solid)", borderLeft: "1px solid var(--card-border)" }}>
             <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom: "1px solid var(--card-border)" }}>
               <div className="flex items-center gap-2.5">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0" style={{ background: "linear-gradient(135deg,#a855f7,#00f2fe)", color: "#0a0a0a" }}>{viewP.first_name[0]}{(viewP.last_name || "")[0]}</div>
@@ -451,8 +451,8 @@ export default function ProspectsPage() {
       {/* ── CREATE/EDIT DRAWER ── */}
       {(isCreateOpen || editP) && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/50" onClick={() => { setIsCreateOpen(false); setEditP(null); }} />
-          <div className="relative ml-auto h-full w-full max-w-[520px] overflow-y-auto shadow-2xl" style={{ background: "var(--card-bg-solid)", borderLeft: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 t-modal-backdrop" onClick={() => { setIsCreateOpen(false); setEditP(null); }} />
+          <div className="relative ml-auto h-full w-full max-w-[520px] overflow-y-auto shadow-2xl t-drawer-panel" style={{ background: "var(--card-bg-solid)", borderLeft: "1px solid var(--card-border)" }}>
             <form onSubmit={editP ? handleEdit : handleCreate}>
               <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4" style={{ background: "var(--card-bg-solid)", borderBottom: "1px solid var(--card-border)" }}>
                 <h2 className="cause-font text-lg font-bold" style={{ color: "var(--text-color)" }}>{editP ? "Edit Prospect" : "New Prospect"}</h2>
@@ -520,8 +520,8 @@ export default function ProspectsPage() {
       {/* ── DELETE MODAL ── */}
       {deleteP && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteP(null)} />
-          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setDeleteP(null)} />
+          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl t-modal-pop" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
             <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(239,68,68,.1)" }}><Trash2 size={22} style={{ color: "#ef4444" }} /></div>
             <h3 className="text-base font-bold text-center mb-1" style={{ color: "var(--text-color)" }}>Remove Prospect?</h3>
             <p className="text-sm text-muted-foreground text-center mb-5"><strong style={{ color: "var(--text-color)" }}>{deleteP.first_name} {deleteP.last_name}</strong> from <strong style={{ color: "var(--text-color)" }}>{deleteP.company || "Unknown"}</strong> will be removed.</p>
@@ -536,8 +536,8 @@ export default function ProspectsPage() {
       {/* ── ADD NOTE ── */}
       {noteForP && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setNoteForP(null)} />
-          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setNoteForP(null)} />
+          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl t-modal-pop" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
             <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold" style={{ color: "var(--text-color)" }}>Add Note — {noteForP.first_name} {noteForP.last_name}</h3><button onClick={() => setNoteForP(null)}><X size={15} /></button></div>
             <textarea autoFocus rows={4} value={newNote} onChange={e => setNewNote(e.target.value)} className="w-full border rounded-xl p-3 text-sm outline-none resize-none" style={{ borderColor: "var(--card-border)", background: "var(--accent)", color: "var(--text-color)" }} placeholder="Write note..." />
             <div className="flex gap-3 mt-4">
@@ -551,8 +551,8 @@ export default function ProspectsPage() {
       {/* ── REMINDER ── */}
       {reminderP && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setReminderP(null)} />
-          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setReminderP(null)} />
+          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl t-modal-pop" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
             <div className="flex items-center justify-between mb-5"><div><h3 className="text-sm font-bold" style={{ color: "var(--text-color)" }}>Set Reminder</h3><p className="text-xs text-muted-foreground">For: {reminderP.first_name} {reminderP.last_name}</p></div><button onClick={() => setReminderP(null)}><X size={15} /></button></div>
             <div className="space-y-3">
               <PFF label="Title *"><input value={reminderForm.title} onChange={e => setReminderForm(f => ({ ...f, title: e.target.value }))} className="pct-fi" placeholder="BANT follow-up call" /></PFF>
@@ -573,8 +573,8 @@ export default function ProspectsPage() {
       {/* ── COLUMN EDITOR ── */}
       {columnEditorOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setColumnEditorOpen(false)} />
-          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setColumnEditorOpen(false)} />
+          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl t-modal-pop" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
             <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold" style={{ color: "var(--text-color)" }}><SlidersHorizontal size={14} className="inline mr-1.5" />Customise Columns</h3><button onClick={() => setColumnEditorOpen(false)}><X size={14} /></button></div>
             <div className="space-y-1.5">
               {ALL_COLUMNS.map(col => (

@@ -36,3 +36,13 @@ Organizations, Users (Clerk-linked), Leads, Prospects, Deals, Contracts, Custome
 - Login/register pages are visually unchanged.
 
 See `DEVPLAN.md` for the phased task breakdown and `CONTEXT.md` for architecture details.
+
+## Phase 7 Addendum — Performance & Motion Design
+### Goals
+1. Eliminate redundant Clerk Backend API calls (`currentUser()`) from the hot path of every server action — use `auth()` (local JWT decode) for the existing-user lookup in `getOrCreateDbUser()`/`getCurrentDbUser()`.
+2. Introduce a consistent, themed motion-design system (`transitions-dev`) for page transitions, modals/drawers, sliding tab/view switchers, and loading skeletons — respecting `prefers-reduced-motion`.
+3. Apply the motion system to Leads and Prospects as the reference implementation, then roll out to the remaining 11 dashboard pages (see `DEVPLAN.md` Phase 7 checklist).
+
+### Success Criteria
+- Navigating between dashboard pages and clicking buttons/actions no longer incurs an extra Clerk network round trip on the common path.
+- Leads and Prospects pages have animated page transitions, sliding view switchers (where applicable), animated modal/drawer open transitions, and pulsing loading skeletons, all degrading gracefully under `prefers-reduced-motion`.
