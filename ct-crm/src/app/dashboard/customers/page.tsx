@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createClient } from "@/utils/supabase/client";
+import {
+  getCustomers, getCustomerReminders, createCustomer, updateCustomer,
+  updateCustomerStatus, deleteCustomer as deleteCustomerAction, addCustomerNote, createCustomerReminder,
+} from "@/server/customers";
 import { toast } from "sonner";
 import {
   Search, Plus, MoreHorizontal, Mail, Building, DollarSign, X, Eye,
@@ -108,23 +111,9 @@ export default function CustomersPage() {
   const fetchCustomers = useCallback(async () => {
     try {
       setLoading(true);
-      const sb = createClient();
-      const [custsRes, notesRes, remindersRes] = await Promise.all([
-        sb.from("customers").select("*").order("customer_since", { ascending: false }),
-        sb.from("customer_notes").select("*").order("created_at", { ascending: false }),
-        sb.from("reminders").select("*").eq("entity_type", "customer").order("datetime", { ascending: true }),
-      ]);
-      if (custsRes.error) throw custsRes.error;
-      if (custsRes.data?.length) {
-        const notesData = notesRes.data || [];
-        setCustomers(custsRes.data.map(d => ({
-          ...d, tags: d.tags || [], starred: d.starred || false,
-          cnotes: notesData.filter((n: any) => n.customer_id === d.id).map((n: any) => ({ id: n.id, text: n.text, created_at: n.created_at, author: n.author || "You" })),
-        })));
-      }
-      if (remindersRes.data?.length) {
-        setReminders(remindersRes.data.map((r: any) => ({ id: r.id, cust_id: r.entity_id, cust_name: r.entity_name || "", title: r.title, type: r.type, datetime: r.datetime, note: r.note || "", done: r.done || false })));
-      }
+      const [custRows, reminderRows] = await Promise.all([getCustomers(), getCustomerReminders()]);
+      if (custRows.length) setCustomers(custRows as Customer[]);
+      if (reminderRows.length) setReminders(reminderRows as Reminder[]);
     } catch { } finally { setLoading(false); }
   }, []);
 
@@ -134,8 +123,8 @@ export default function CustomersPage() {
   const handleUpdateStatus = useCallback(async (id: string, next: CustomerStatus) => {
     setCustomers(p => p.map(c => c.id === id ? { ...c, status: next } : c));
     if (viewCust?.id === id) setViewCust(v => v ? { ...v, status: next } : v);
-    try { await createClient().from("customers").update({ status: next }).eq("id", id); toast.success(`Status → ${next}`); }
-    catch { toast.success(`[Demo] Status → ${next}`); }
+    try { await updateCustomerStatus(id, next); toast.success(`Status → ${next}`); }
+    catch { toast.error("Failed to update status"); }
   }, [viewCust]);
 
   const handleToggleStar = useCallback((id: string) => {
@@ -147,16 +136,20 @@ export default function CustomersPage() {
     e.preventDefault();
     if (!form.contact_name) { toast.error("Name required"); return; }
     setSubmitting(true);
-    const full: Customer = { id: "", contact_name: form.contact_name, company: form.company, email: form.email, phone: form.phone, status: form.status, lifetime_value: parseFloat(form.lifetime_value) || 0, health_score: parseInt(form.health_score) || 80, industry: form.industry, city: form.city, contract_title: form.contract_title, contract_value: parseFloat(form.contract_value) || 0, contract_status: form.contract_status, notes: form.notes, tags: form.tags ? form.tags.split(",").map(t => t.trim()).filter(Boolean) : [], starred: false, cnotes: [], customer_since: new Date().toISOString(), created_at: new Date().toISOString() };
+    const tags = form.tags ? form.tags.split(",").map(t => t.trim()).filter(Boolean) : [];
+    const payload = {
+      contact_name: form.contact_name, company: form.company, email: form.email, phone: form.phone,
+      status: form.status, lifetime_value: parseFloat(form.lifetime_value) || 0, health_score: parseInt(form.health_score) || 80,
+      industry: form.industry, city: form.city, contract_title: form.contract_title,
+      contract_value: parseFloat(form.contract_value) || 0, contract_status: form.contract_status, notes: form.notes, tags,
+    };
+    const full: Customer = { id: "", ...payload, starred: false, cnotes: [], customer_since: new Date().toISOString(), created_at: new Date().toISOString() };
     try {
-      const dbPayload = { contact_name: form.contact_name, company: form.company, email: form.email, lifetime_value: parseFloat(form.lifetime_value) || 0, status: form.status, customer_since: new Date().toISOString() };
-      const { data, error } = await createClient().from("customers").insert(dbPayload).select("id").single();
-      if (error) throw error;
-      setCustomers(p => [{ ...full, id: data.id }, ...p]);
+      const row = await createCustomer(payload);
+      setCustomers(p => [{ ...full, id: row.id }, ...p]);
       toast.success("✅ Customer saved to database!");
     } catch {
-      setCustomers(p => [{ ...full, id: Math.random().toString(36).slice(7) }, ...p]);
-      toast.success("[Demo] Customer added locally");
+      toast.error("Failed to save customer");
     } finally { setSubmitting(false); setIsCreateOpen(false); resetForm(); }
   };
 
@@ -169,18 +162,22 @@ export default function CustomersPage() {
     setCustomers(p => p.map(c => c.id === editCust.id ? updated : c));
     if (viewCust?.id === editCust.id) setViewCust(updated);
     try {
-      const { error } = await createClient().from("customers").update({ contact_name: updates.contact_name, company: updates.company, email: updates.email, lifetime_value: updates.lifetime_value, status: updates.status }).eq("id", editCust.id);
-      if (error) throw error; toast.success("✅ Customer updated!");
-    } catch { toast.success("[Demo] Customer updated locally"); }
+      await updateCustomer(editCust.id, updates as any);
+      toast.success("✅ Customer updated!");
+    } catch { toast.error("Failed to update customer"); }
     finally { setSubmitting(false); setEditCust(null); }
   };
 
   const handleDelete = async () => {
     if (!deleteCust) return;
-    setCustomers(p => p.filter(c => c.id !== deleteCust.id));
-    if (viewCust?.id === deleteCust.id) setViewCust(null);
-    toast.success("Customer removed"); setDeleteCust(null);
-    try { await createClient().from("customers").delete().eq("id", deleteCust.id); } catch {}
+    const id = deleteCust.id;
+    setCustomers(p => p.filter(c => c.id !== id));
+    if (viewCust?.id === id) setViewCust(null);
+    setDeleteCust(null);
+    try {
+      await deleteCustomerAction(id);
+      toast.success("Customer removed");
+    } catch { toast.error("Failed to delete customer"); }
   };
 
   const handleAddNote = async (cust: Customer) => {
@@ -192,14 +189,12 @@ export default function CustomersPage() {
     if (viewCust?.id === cust.id) setViewCust(updated);
     setNewNote("");
     try {
-      const { data, error } = await createClient().from("customer_notes").insert({ customer_id: cust.id, text: noteText, author: "You" }).select("id").single();
-      if (!error && data) {
-        const realNote = { ...tempNote, id: data.id };
-        setCustomers(p => p.map(c => c.id === cust.id ? { ...c, cnotes: c.cnotes?.map(n => n.id === tempNote.id ? realNote : n) || [] } : c));
-        if (viewCust?.id === cust.id) setViewCust(v => v ? { ...v, cnotes: v.cnotes?.map(n => n.id === tempNote.id ? realNote : n) || [] } : v);
-        toast.success("✅ Note saved!");
-      } else { toast.success("Note added"); }
-    } catch { toast.success("Note added"); }
+      const row = await addCustomerNote(cust.id, noteText);
+      const realNote = { ...tempNote, id: row.id };
+      setCustomers(p => p.map(c => c.id === cust.id ? { ...c, cnotes: c.cnotes?.map(n => n.id === tempNote.id ? realNote : n) || [] } : c));
+      if (viewCust?.id === cust.id) setViewCust(v => v ? { ...v, cnotes: v.cnotes?.map(n => n.id === tempNote.id ? realNote : n) || [] } : v);
+      toast.success("✅ Note saved!");
+    } catch { toast.error("Failed to save note"); }
   };
 
   const handleSetReminder = async () => {
@@ -210,8 +205,8 @@ export default function CustomersPage() {
     toast.success(`⏰ Reminder set for ${new Date(reminderForm.datetime).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}`);
     setReminderCust(null); setReminderForm({ title: "", type: "call", datetime: "", note: "" });
     try {
-      const { data } = await createClient().from("reminders").insert({ entity_type: "customer", entity_id: reminderCust.id, entity_name: r.cust_name, title: r.title, type: r.type, datetime: r.datetime, note: r.note, done: false }).select("id").single();
-      if (data?.id) setReminders(p => p.map(x => x.id === tempId ? { ...x, id: data.id } : x));
+      const row = await createCustomerReminder({ entity_id: reminderCust.id, entity_name: r.cust_name, title: r.title, type: r.type, datetime: r.datetime, note: r.note });
+      setReminders(p => p.map(x => x.id === tempId ? { ...x, id: row.id } : x));
     } catch {}
   };
 

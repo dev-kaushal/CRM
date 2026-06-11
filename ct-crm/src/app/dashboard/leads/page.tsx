@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createClient } from "@/utils/supabase/client";
+import {
+  getLeads,
+  getLeadReminders,
+  createLead,
+  updateLead,
+  updateLeadStatus,
+  deleteLead as deleteLeadAction,
+  addLeadNote,
+  createLeadReminder,
+} from "@/server/leads";
 import { toast } from "sonner";
 import {
   Search, Filter, Plus, Table2, Kanban as KanbanIcon, Grid,
@@ -57,15 +66,6 @@ interface Lead {
   starred?: boolean;
   tags?: string[];
   lead_notes?: LeadNote[];
-}
-
-// ─── Core DB columns (guaranteed to exist in Supabase leads table) ────────────
-const CORE_DB_FIELDS = ["first_name", "last_name", "email", "phone", "company", "source", "status", "estimated_value", "notes"];
-
-function pickCoreFields(obj: Record<string, any>) {
-  const result: Record<string, any> = {};
-  CORE_DB_FIELDS.forEach(k => { if (obj[k] !== undefined) result[k] = obj[k]; });
-  return result;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -163,27 +163,12 @@ export default function LeadsPage() {
   const fetchLeads = useCallback(async () => {
     try {
       setLoading(true);
-      const sb = createClient();
-      // Fetch leads + their notes + active reminders in parallel
-      const [leadsRes, notesRes, remindersRes] = await Promise.all([
-        sb.from("leads").select("*").order("created_at", { ascending: false }),
-        sb.from("lead_notes").select("*").order("created_at", { ascending: false }),
-        sb.from("reminders").select("*").eq("entity_type", "lead").order("datetime", { ascending: true }),
-      ]);
-      if (leadsRes.error) throw leadsRes.error;
-      if (leadsRes.data?.length) {
-        const notesData = notesRes.data || [];
-        setLeads(leadsRes.data.map(d => ({
-          ...d,
-          tags: d.tags || [],
-          priority: d.priority || "medium",
-          starred: d.starred || false,
-          lead_notes: notesData.filter((n: any) => n.lead_id === d.id).map((n: any) => ({ id: n.id, text: n.text, created_at: n.created_at, author: n.author || "You" })),
-        })));
+      const [leadRows, reminderRows] = await Promise.all([getLeads(), getLeadReminders()]);
+      if (leadRows.length) {
+        setLeads(leadRows as Lead[]);
       }
-      // Restore reminders from DB
-      if (remindersRes.data?.length) {
-        setReminders(remindersRes.data.map((r: any) => ({ id: r.id, lead_id: r.entity_id, lead_name: r.entity_name || "", title: r.title, type: r.type, datetime: r.datetime, note: r.note || "", done: r.done || false })));
+      if (reminderRows.length) {
+        setReminders(reminderRows as Reminder[]);
       }
     } catch {
       // Keep fallback data
@@ -205,9 +190,9 @@ export default function LeadsPage() {
     setLeads(p => p.map(l => l.id === id ? { ...l, status: next } : l));
     if (viewLead?.id === id) setViewLead(v => v ? { ...v, status: next } : v);
     try {
-      await createClient().from("leads").update({ status: next, updated_at: new Date().toISOString() }).eq("id", id);
+      await updateLeadStatus(id, next);
       toast.success(`Status → ${next}`);
-    } catch { toast.success(`[Demo] Status → ${next}`); }
+    } catch { toast.error("Failed to update status"); }
   }, [viewLead]);
 
   const handleToggleStar = useCallback((id: string) => {
@@ -230,35 +215,20 @@ export default function LeadsPage() {
       created_at: new Date().toISOString(), lead_notes: [], starred: false,
     };
     try {
-      const sb = createClient();
-      const { data: org } = await sb.from("organizations").select("id").limit(1).single();
-      const organization_id = org?.id || "11111111-1111-1111-1111-111111111111";
-      // Insert all fields — new schema has all columns
-      const { data, error } = await sb.from("leads").insert({
-        organization_id,
+      const row = await createLead({
         first_name: form.first_name, last_name: form.last_name, email: form.email,
         phone: form.phone, company: form.company, source: form.source,
         status: form.status, estimated_value: parseFloat(form.estimated_value) || 0,
-        notes: form.notes, city: form.city, country: form.country,
-        industry: form.industry, employee_count: form.employee_count,
-        priority: form.priority, starred: false,
+        notes: form.notes, website: form.website, linkedin: form.linkedin,
+        city: form.city, country: form.country, industry: form.industry,
+        employee_count: form.employee_count, priority: form.priority,
         tags: form.tags ? form.tags.split(",").map(t => t.trim()).filter(Boolean) : [],
-      }).select("id").single();
-      if (error) throw error;
-      const newLead: Lead = { ...fullPayload, id: data.id };
+      });
+      const newLead: Lead = { ...fullPayload, id: row.id };
       setLeads(p => [newLead, ...p]);
       toast.success("✅ Lead saved to database!");
     } catch {
-      // Fallback: local only (schema might still be old)
-      const dbPayload = pickCoreFields(fullPayload as any);
-      try {
-        const sb = createClient();
-        const { data: org } = await sb.from("organizations").select("id").limit(1).single();
-        const { data, error } = await sb.from("leads").insert({ ...dbPayload, organization_id: org?.id || "11111111-1111-1111-1111-111111111111" }).select("id").single();
-        if (!error && data) { setLeads(p => [{ ...fullPayload, id: data.id }, ...p]); toast.success("✅ Lead saved (core fields)"); setSubmitting(false); setIsCreateOpen(false); resetForm(); return; }
-      } catch {}
-      setLeads(p => [{ ...fullPayload, id: Math.random().toString(36).slice(7) }, ...p]);
-      toast.success("[Demo] Lead added locally");
+      toast.error("Failed to save lead");
     } finally {
       setSubmitting(false); setIsCreateOpen(false); resetForm();
     }
@@ -281,24 +251,19 @@ export default function LeadsPage() {
     setLeads(p => p.map(l => l.id === editLead.id ? updatedLead : l));
     if (viewLead?.id === editLead.id) setViewLead(updatedLead);
     try {
-      // Try full update first (new schema)
-      const { error } = await createClient().from("leads").update({
-        first_name: updates.first_name, last_name: updates.last_name,
-        email: updates.email, phone: updates.phone, company: updates.company,
+      await updateLead(editLead.id, {
+        first_name: updates.first_name!, last_name: updates.last_name!,
+        email: updates.email!, phone: updates.phone, company: updates.company,
         source: updates.source, status: updates.status,
         estimated_value: updates.estimated_value, notes: updates.notes,
+        website: updates.website, linkedin: updates.linkedin,
         city: updates.city, country: updates.country, industry: updates.industry,
         employee_count: updates.employee_count, priority: updates.priority,
-        tags: updates.tags, updated_at: new Date().toISOString(),
-      }).eq("id", editLead.id);
-      if (error) throw error;
+        tags: updates.tags,
+      });
       toast.success("✅ Lead updated in database!");
     } catch {
-      // Fallback to core fields only
-      try {
-        await createClient().from("leads").update({ ...pickCoreFields(updates as any), updated_at: new Date().toISOString() }).eq("id", editLead.id);
-        toast.success("✅ Lead updated (core fields)");
-      } catch { toast.success("[Demo] Lead updated locally"); }
+      toast.error("Failed to update lead");
     } finally { setSubmitting(false); setEditLead(null); }
   };
 
@@ -307,8 +272,9 @@ export default function LeadsPage() {
     setLeads(p => p.filter(l => l.id !== deleteLead.id));
     if (viewLead?.id === deleteLead.id) setViewLead(null);
     toast.success("Lead deleted");
+    const id = deleteLead.id;
     setDeleteLead(null);
-    try { await createClient().from("leads").delete().eq("id", deleteLead.id); } catch {}
+    try { await deleteLeadAction(id); } catch { toast.error("Failed to delete lead on server"); }
   };
 
   const handleAddNote = async (lead: Lead) => {
@@ -320,15 +286,12 @@ export default function LeadsPage() {
     if (viewLead?.id === lead.id) setViewLead(updated);
     setNewNote("");
     try {
-      const { data, error } = await createClient().from("lead_notes").insert({ lead_id: lead.id, text: noteText, author: "You" }).select("id").single();
-      if (!error && data) {
-        // Replace temp id with real id
-        const realNote = { ...tempNote, id: data.id };
-        setLeads(p => p.map(l => l.id === lead.id ? { ...l, lead_notes: l.lead_notes?.map(n => n.id === tempNote.id ? realNote : n) || [] } : l));
-        if (viewLead?.id === lead.id) setViewLead(v => v ? { ...v, lead_notes: v.lead_notes?.map(n => n.id === tempNote.id ? realNote : n) || [] } : v);
-        toast.success("✅ Note saved to database!");
-      } else { toast.success("Note added"); }
-    } catch { toast.success("Note added"); }
+      const row = await addLeadNote(lead.id, noteText);
+      const realNote = { ...tempNote, id: row.id };
+      setLeads(p => p.map(l => l.id === lead.id ? { ...l, lead_notes: l.lead_notes?.map(n => n.id === tempNote.id ? realNote : n) || [] } : l));
+      if (viewLead?.id === lead.id) setViewLead(v => v ? { ...v, lead_notes: v.lead_notes?.map(n => n.id === tempNote.id ? realNote : n) || [] } : v);
+      toast.success("✅ Note saved to database!");
+    } catch { toast.error("Failed to save note"); }
   };
 
   const handleSetReminder = async () => {
@@ -341,8 +304,8 @@ export default function LeadsPage() {
     setReminderForm({ title: "", type: "call", datetime: "", note: "" });
     // Persist to DB
     try {
-      const { data } = await createClient().from("reminders").insert({ entity_type: "lead", entity_id: reminderLead.id, entity_name: r.lead_name, title: r.title, type: r.type, datetime: r.datetime, note: r.note, done: false }).select("id").single();
-      if (data?.id) setReminders(p => p.map(x => x.id === tempId ? { ...x, id: data.id } : x));
+      const row = await createLeadReminder({ entity_id: reminderLead.id, entity_name: r.lead_name, title: r.title, type: r.type, datetime: r.datetime, note: r.note });
+      setReminders(p => p.map(x => x.id === tempId ? { ...x, id: row.id } : x));
     } catch {}
   };
 

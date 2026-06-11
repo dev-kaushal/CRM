@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/utils/supabase/client";
+import { getDeals, updateDealStage, createDeal } from "@/server/deals";
 import { WidgetWrapper } from "@/components/dashboard/widgets/widget-wrapper";
 import { toast } from "sonner";
 import { DollarSign, ShieldAlert, Award, Calculator, Layers, ArrowRightLeft, Plus } from "lucide-react";
@@ -57,15 +57,9 @@ export default function DealsPage() {
   const fetchDeals = async () => {
     try {
       setLoading(true);
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("deals")
-        .select("*, lead:leads(company, first_name, last_name)")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      if (data && data.length > 0) {
-        setDeals(data);
+      const rows = await getDeals();
+      if (rows.length > 0) {
+        setDeals(rows as Deal[]);
       }
     } catch {
       console.warn("Using offline fallback deal data.");
@@ -85,20 +79,10 @@ export default function DealsPage() {
     setDeals(prev => prev.map(d => d.id === id ? { ...d, stage: nextStage, probability: prob } : d));
     
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("deals")
-        .update({
-          stage: nextStage,
-          probability: prob,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", id);
-      
-      if (error) throw error;
+      await updateDealStage(id, nextStage, prob);
       toast.success(`Deal shifted to ${nextStage}`);
     } catch {
-      toast.success(`[Offline/Demo] Deal shifted to ${nextStage}`);
+      toast.error("Failed to update deal stage");
     }
   };
 
@@ -114,56 +98,13 @@ export default function DealsPage() {
     const dealValueNum = parseFloat(value) || 0;
 
     try {
-      const supabase = createClient();
-      const { data: orgData } = await supabase.from("organizations").select("id").limit(1).single();
-      const organization_id = orgData?.id || "11111111-1111-1111-1111-111111111111";
-      const { data: userData } = await supabase.auth.getUser();
-      const owner_id = userData?.user?.id || "aaaa0001-0001-0001-0001-000000000001";
-
-      // Fetch or Create dummy lead to connect
-      const { data: leadRec } = await supabase
-        .from("leads")
-        .insert({
-          organization_id,
-          first_name: "Opportunity",
-          last_name: "Contact",
-          email: `deal-${Math.floor(Math.random()*1000)}@corp.com`,
-          company: companyName || "New Enterprise",
-          status: "QUALIFIED",
-        })
-        .select("id")
-        .single();
-
-      const { error } = await supabase
-        .from("deals")
-        .insert({
-          organization_id,
-          lead_id: leadRec?.id || "11111111-1111-1111-1111-111111111111",
-          title,
-          value: dealValueNum,
-          stage,
-          probability: prob,
-          owner_id,
-        });
-
-      if (error) throw error;
+      await createDeal({ title, value: dealValueNum, stage, probability: prob, company_name: companyName });
       toast.success("Deal pipeline record created");
       setIsModalOpen(false);
       resetForm();
       fetchDeals();
-    } catch (err) {
-      const demoDeal: Deal = {
-        id: Math.random().toString(36).substring(7),
-        title,
-        value: dealValueNum,
-        stage,
-        probability: prob,
-        company_name: companyName || "New Enterprise",
-      };
-      setDeals(prev => [demoDeal, ...prev]);
-      toast.success("[Offline/Demo] Deal pipeline record added locally");
-      setIsModalOpen(false);
-      resetForm();
+    } catch {
+      toast.error("Failed to create deal");
     } finally {
       setSubmitting(false);
     }

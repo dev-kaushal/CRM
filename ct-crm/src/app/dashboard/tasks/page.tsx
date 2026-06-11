@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/utils/supabase/client";
+import { getTasks, createTask, updateTaskStatus } from "@/server/tasks";
 import { WidgetWrapper } from "@/components/dashboard/widgets/widget-wrapper";
 import { toast } from "sonner";
 import {
@@ -93,14 +93,8 @@ export default function TasksPage() {
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("*")
-        .order("due_date", { ascending: true });
-
-      if (error) throw error;
-      if (data && data.length > 0) setTasks(data);
+      const rows = await getTasks();
+      if (rows.length > 0) setTasks(rows as Task[]);
     } catch {
       console.warn("Using offline fallback tasks data.");
       setTasks(FALLBACK_TASKS);
@@ -112,15 +106,12 @@ export default function TasksPage() {
   useEffect(() => { fetchTasks(); }, []);
 
   const handleUpdateStatus = async (id: string, nextStatus: Task["status"]) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, status: nextStatus } : t));
     try {
-      const supabase = createClient();
-      const { error } = await supabase.from("tasks").update({ status: nextStatus, updated_at: new Date().toISOString() }).eq("id", id);
-      if (error) throw error;
+      await updateTaskStatus(id, nextStatus);
       toast.success(`Task marked as ${STATUS_CONFIG[nextStatus].label}`);
-      fetchTasks();
     } catch {
-      setTasks(prev => prev.map(t => t.id === id ? { ...t, status: nextStatus } : t));
-      toast.success(`Task marked as ${STATUS_CONFIG[nextStatus].label}`);
+      toast.error("Failed to update task status");
     }
   };
 
@@ -140,14 +131,19 @@ export default function TasksPage() {
       created_at: new Date().toISOString(),
     };
     try {
-      const supabase = createClient();
-      const { error } = await supabase.from("tasks").insert({ ...newTask, id: undefined });
-      if (error) throw error;
-      toast.success("Task created successfully");
-      fetchTasks();
-    } catch {
+      const row = await createTask({
+        title: formTitle,
+        description: formDesc,
+        type: formType,
+        priority: formPriority,
+        due_date: new Date(formDueDate).toISOString(),
+        assigned_to: formAssignee || undefined,
+      });
+      newTask.id = row?.id ?? newTask.id;
       setTasks(prev => [newTask, ...prev]);
-      toast.success("Task created (offline)");
+      toast.success("Task created successfully");
+    } catch {
+      toast.error("Failed to create task");
     }
     setSubmitting(false);
     setIsModalOpen(false);

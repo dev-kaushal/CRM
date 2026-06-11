@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef, Fragment } from "react";
 import { WidgetWrapper } from "./widget-wrapper";
 import { toast } from "sonner";
-import { createClient } from "@/utils/supabase/client";
 import {
   fetchLeadScores, upsertLeadScore,
   fetchWorkflowDefinitions, createWorkflowDefinition, createWorkflowRun,
@@ -13,6 +12,7 @@ import {
   getOrganizationId,
   fetchLeadEnrichment, upsertLeadEnrichment, logAIInteraction,
   createWhatsAppMessage, logPrompt,
+  fetchPipelineSnapshot, fetchLeadIntelligence,
 } from "@/lib/supabase-ai";
 import { 
   Sparkles, Bot, MessageSquare, Send, Calendar, ShieldCheck, 
@@ -858,9 +858,7 @@ export function AIReadySection() {
 
     setLoading(true);
     try {
-      const supabase = createClient();
-      const { data: leads } = await supabase.from("leads").select("*");
-      const { data: deals } = await supabase.from("deals").select("*");
+      const { leads, deals } = await fetchPipelineSnapshot();
 
       const query = nlQuery.toLowerCase();
       let result: {
@@ -881,7 +879,7 @@ export function AIReadySection() {
         
         result = {
           title: "Real-time Pipeline Bottlenecks Analysis",
-          summary: `Pipeline analyzer fetched ${deals?.length || 0} active deals in Supabase. We identified ${negotiationDeals.length} deals in Negotiation stage, ${proposalDeals.length} in Proposal, and ${wonDeals.length} Won. There is a potential slowdown at the Negotiation bottleneck stage.`,
+          summary: `Pipeline analyzer fetched ${deals?.length || 0} active deals. We identified ${negotiationDeals.length} deals in Negotiation stage, ${proposalDeals.length} in Proposal, and ${wonDeals.length} Won. There is a potential slowdown at the Negotiation bottleneck stage.`,
           chartData: {
             labels: ["New", "Proposal", "Negotiation", "Won"],
             values: [newDeals.length, proposalDeals.length, negotiationDeals.length, wonDeals.length]
@@ -893,20 +891,20 @@ export function AIReadySection() {
         
         result = {
           title: "Marketing Source Lead Attribution ROI",
-          summary: `Attribution analyzer indexed ${leads?.length || 0} total ingested leads in your Supabase project. The lead counts across channels are: Google (${counts[0]}), Referral (${counts[1]}), Meta (${counts[2]}), Direct (${counts[3]}), and WhatsApp (${counts[4]}).`,
+          summary: `Attribution analyzer indexed ${leads?.length || 0} total ingested leads. The lead counts across channels are: Google (${counts[0]}), Referral (${counts[1]}), Meta (${counts[2]}), Direct (${counts[3]}), and WhatsApp (${counts[4]}).`,
           chartData: {
             labels: sources,
             values: counts
           }
         };
       } else if (query.includes("lost") || query.includes("value") || query.includes("revenue")) {
-        const totalVal = deals?.reduce((sum, d) => sum + (d.value || 0), 0) || 0;
-        const wonVal = deals?.filter(d => d.stage === "WON").reduce((sum, d) => sum + (d.value || 0), 0) || 0;
-        const lostVal = deals?.filter(d => d.stage === "LOST").reduce((sum, d) => sum + (d.value || 0), 0) || 0;
+        const totalVal = deals?.reduce((sum, d) => sum + Number(d.value || 0), 0) || 0;
+        const wonVal = deals?.filter(d => d.stage === "WON").reduce((sum, d) => sum + Number(d.value || 0), 0) || 0;
+        const lostVal = deals?.filter(d => d.stage === "LOST").reduce((sum, d) => sum + Number(d.value || 0), 0) || 0;
 
         result = {
           title: "Pipeline Revenue and Pipeline Loss Analysis",
-          summary: `Your active opportunities total ₹${totalVal.toLocaleString("en-IN")} in value. Closed-won deals total ₹${wonVal.toLocaleString("en-IN")} compared to ₹${lostVal.toLocaleString("en-IN")} closed-lost in Supabase records.`,
+          summary: `Your active opportunities total ₹${totalVal.toLocaleString("en-IN")} in value. Closed-won deals total ₹${wonVal.toLocaleString("en-IN")} compared to ₹${lostVal.toLocaleString("en-IN")} closed-lost.`,
           chartData: {
             labels: ["Total Pipeline", "Closed Won", "Closed Lost"],
             values: [totalVal, wonVal, lostVal]
@@ -1099,26 +1097,15 @@ export function AIReadySection() {
     setCopilotChatText("");
 
     try {
-      const supabase = createClient();
-      const { data: scoreData } = await supabase
-        .from("lead_scores")
-        .select("*")
-        .eq("lead_id", row.id)
-        .maybeSingle();
+      const { score, enrichment } = await fetchLeadIntelligence(row.id);
 
-      if (scoreData) {
-        setEnrichmentScore(scoreData.score);
-        setEnrichmentFactors(scoreData.factors);
+      if (score) {
+        setEnrichmentScore(score.score);
+        setEnrichmentFactors(score.factors);
       }
 
-      const { data: enrichData } = await supabase
-        .from("lead_enrichment")
-        .select("*")
-        .eq("lead_id", row.id)
-        .maybeSingle();
-
-      if (enrichData) {
-        setEnrichmentProfile(enrichData);
+      if (enrichment) {
+        setEnrichmentProfile(enrichment);
       }
     } catch (err) {
       console.warn("Could not load real-time lead score or enrichment data.", err);

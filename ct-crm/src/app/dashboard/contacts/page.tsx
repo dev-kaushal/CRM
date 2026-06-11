@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createClient } from "@/utils/supabase/client";
+import {
+  getContacts, getContactReminders, createContact, updateContact,
+  updateContactStatus, deleteContact as deleteContactAction, addContactNote, createContactReminder,
+} from "@/server/contacts";
 import { toast } from "sonner";
 import {
   Search, Filter, Plus, MoreHorizontal, Mail, Phone, Building,
@@ -138,30 +141,10 @@ export default function ContactsPage() {
   const fetchContacts = useCallback(async () => {
     try {
       setLoading(true);
-      const sb = createClient();
-      const [contactsRes, notesRes, remindersRes] = await Promise.all([
-        sb.from("contacts").select("*").order("created_at", { ascending: false }),
-        sb.from("contact_notes").select("*").order("created_at", { ascending: false }),
-        sb.from("reminders").select("*").eq("entity_type", "contact").order("datetime", { ascending: true }),
-      ]);
-      if (contactsRes.error) throw contactsRes.error;
-      if (contactsRes.data?.length) {
-        const notesData = notesRes.data || [];
-        setContacts(contactsRes.data.map(d => ({
-          ...d, tags: d.tags || [], starred: d.starred || false,
-          contact_notes: notesData.filter((n: any) => n.contact_id === d.id).map((n: any) => ({ id: n.id, text: n.text, created_at: n.created_at, author: n.author || "You" })),
-        })));
-      }
-      if (remindersRes.data?.length) {
-        setReminders(remindersRes.data.map((r: any) => ({ id: r.id, contact_id: r.entity_id, contact_name: r.entity_name || "", title: r.title, type: r.type, datetime: r.datetime, note: r.note || "", done: r.done || false })));
-      }
+      const [contactRows, reminderRows] = await Promise.all([getContacts(), getContactReminders()]);
+      if (contactRows.length) setContacts(contactRows as Contact[]);
+      if (reminderRows.length) setReminders(reminderRows as Reminder[]);
     } catch {
-      // Try legacy customers table
-      try {
-        const sb = createClient();
-        const { data } = await sb.from("customers").select("*").order("customer_since", { ascending: false });
-        if (data?.length) setContacts(data.map(d => ({ ...d, id: d.id, contact_notes: [], starred: false, tags: [] })));
-      } catch {}
     } finally {
       setLoading(false);
     }
@@ -179,11 +162,10 @@ export default function ContactsPage() {
     setContacts(p => p.map(c => c.id === id ? { ...c, status: next } : c));
     if (viewContact?.id === id) setViewContact(v => v ? { ...v, status: next } : v);
     try {
-      await createClient().from("contacts").update({ status: next }).eq("id", id);
+      await updateContactStatus(id, next);
       toast.success(`Status → ${next}`);
     } catch {
-      try { await createClient().from("customers").update({ status: next }).eq("id", id); toast.success(`Status → ${next}`); }
-      catch { toast.success(`[Demo] Status → ${next}`); }
+      toast.error("Failed to update status");
     }
   }, [viewContact]);
 
@@ -196,17 +178,20 @@ export default function ContactsPage() {
     e.preventDefault();
     if (!form.first_name || !form.email) { toast.error("Name & email required"); return; }
     setSubmitting(true);
-    const full: Contact = { id: "", first_name: form.first_name, last_name: form.last_name, contact_name: `${form.first_name} ${form.last_name}`.trim(), email: form.email, phone: form.phone, company: form.company, job_title: form.job_title, department: form.department, status: form.status, lifetime_value: parseFloat(form.lifetime_value) || 0, city: form.city, country: form.country, industry: form.industry, website: form.website, linkedin_url: form.linkedin_url, notes: form.notes, tags: form.tags ? form.tags.split(",").map(t => t.trim()).filter(Boolean) : [], starred: false, contact_notes: [], created_at: new Date().toISOString(), customer_since: new Date().toISOString() };
+    const payload = {
+      first_name: form.first_name, last_name: form.last_name, email: form.email, phone: form.phone,
+      company: form.company, job_title: form.job_title, department: form.department, status: form.status,
+      lifetime_value: parseFloat(form.lifetime_value) || 0, city: form.city, country: form.country,
+      industry: form.industry, website: form.website, linkedin_url: form.linkedin_url, notes: form.notes,
+      tags: form.tags ? form.tags.split(",").map(t => t.trim()).filter(Boolean) : [],
+    };
+    const full: Contact = { id: "", ...payload, contact_name: `${form.first_name} ${form.last_name}`.trim(), starred: false, contact_notes: [], created_at: new Date().toISOString(), customer_since: new Date().toISOString() };
     try {
-      const sb = createClient();
-      const dbPayload = { first_name: form.first_name, last_name: form.last_name, contact_name: full.contact_name, email: form.email, phone: form.phone, company: form.company, job_title: form.job_title, status: form.status, lifetime_value: parseFloat(form.lifetime_value) || 0, notes: form.notes };
-      const { data, error } = await sb.from("contacts").insert(dbPayload).select("id").single();
-      if (error) throw error;
-      setContacts(p => [{ ...full, id: data.id }, ...p]);
+      const row = await createContact(payload);
+      setContacts(p => [{ ...full, id: row.id }, ...p]);
       toast.success("✅ Contact saved to database!");
     } catch {
-      setContacts(p => [{ ...full, id: Math.random().toString(36).slice(7) }, ...p]);
-      toast.success("[Demo] Contact added locally");
+      toast.error("Failed to save contact");
     } finally { setSubmitting(false); setIsCreateOpen(false); resetForm(); }
   };
 
@@ -214,26 +199,33 @@ export default function ContactsPage() {
     e.preventDefault();
     if (!editContact) return;
     setSubmitting(true);
-    const updates: Partial<Contact> = { first_name: form.first_name, last_name: form.last_name, contact_name: `${form.first_name} ${form.last_name}`.trim(), email: form.email, phone: form.phone, company: form.company, job_title: form.job_title, department: form.department, status: form.status, lifetime_value: parseFloat(form.lifetime_value) || 0, city: form.city, country: form.country, industry: form.industry, website: form.website, notes: form.notes, tags: form.tags ? form.tags.split(",").map(t => t.trim()).filter(Boolean) : [] };
-    const updated = { ...editContact, ...updates };
+    const payload = {
+      first_name: form.first_name, last_name: form.last_name, email: form.email, phone: form.phone,
+      company: form.company, job_title: form.job_title, department: form.department, status: form.status,
+      lifetime_value: parseFloat(form.lifetime_value) || 0, city: form.city, country: form.country,
+      industry: form.industry, website: form.website, linkedin_url: form.linkedin_url, notes: form.notes,
+      tags: form.tags ? form.tags.split(",").map(t => t.trim()).filter(Boolean) : [],
+    };
+    const updated = { ...editContact, ...payload, contact_name: `${form.first_name} ${form.last_name}`.trim() };
     setContacts(p => p.map(c => c.id === editContact.id ? updated : c));
     if (viewContact?.id === editContact.id) setViewContact(updated);
     try {
-      const dbUpdates = { first_name: updates.first_name, last_name: updates.last_name, contact_name: updates.contact_name, email: updates.email, phone: updates.phone, company: updates.company, job_title: updates.job_title, status: updates.status, lifetime_value: updates.lifetime_value, notes: updates.notes };
-      const { error } = await createClient().from("contacts").update(dbUpdates).eq("id", editContact.id);
-      if (error) throw error;
+      await updateContact(editContact.id, payload);
       toast.success("✅ Contact updated!");
-    } catch { toast.success("[Demo] Contact updated locally"); }
+    } catch { toast.error("Failed to update contact"); }
     finally { setSubmitting(false); setEditContact(null); }
   };
 
   const handleDelete = async () => {
     if (!deleteContact) return;
-    setContacts(p => p.filter(c => c.id !== deleteContact.id));
-    if (viewContact?.id === deleteContact.id) setViewContact(null);
-    toast.success("Contact deleted");
+    const id = deleteContact.id;
+    setContacts(p => p.filter(c => c.id !== id));
+    if (viewContact?.id === id) setViewContact(null);
     setDeleteContact(null);
-    try { await createClient().from("contacts").delete().eq("id", deleteContact.id); } catch {}
+    try {
+      await deleteContactAction(id);
+      toast.success("Contact deleted");
+    } catch { toast.error("Failed to delete contact"); }
   };
 
   const handleAddNote = async (contact: Contact) => {
@@ -245,14 +237,12 @@ export default function ContactsPage() {
     if (viewContact?.id === contact.id) setViewContact(updated);
     setNewNote("");
     try {
-      const { data, error } = await createClient().from("contact_notes").insert({ contact_id: contact.id, text: noteText, author: "You" }).select("id").single();
-      if (!error && data) {
-        const realNote = { ...tempNote, id: data.id };
-        setContacts(p => p.map(c => c.id === contact.id ? { ...c, contact_notes: c.contact_notes?.map(n => n.id === tempNote.id ? realNote : n) || [] } : c));
-        if (viewContact?.id === contact.id) setViewContact(v => v ? { ...v, contact_notes: v.contact_notes?.map(n => n.id === tempNote.id ? realNote : n) || [] } : v);
-        toast.success("✅ Note saved!");
-      } else { toast.success("Note added"); }
-    } catch { toast.success("Note added"); }
+      const row = await addContactNote(contact.id, noteText);
+      const realNote = { ...tempNote, id: row.id };
+      setContacts(p => p.map(c => c.id === contact.id ? { ...c, contact_notes: c.contact_notes?.map(n => n.id === tempNote.id ? realNote : n) || [] } : c));
+      if (viewContact?.id === contact.id) setViewContact(v => v ? { ...v, contact_notes: v.contact_notes?.map(n => n.id === tempNote.id ? realNote : n) || [] } : v);
+      toast.success("✅ Note saved!");
+    } catch { toast.error("Failed to save note"); }
   };
 
   const handleSetReminder = async () => {
@@ -264,8 +254,8 @@ export default function ContactsPage() {
     setReminderContact(null);
     setReminderForm({ title: "", type: "call", datetime: "", note: "" });
     try {
-      const { data } = await createClient().from("reminders").insert({ entity_type: "contact", entity_id: reminderContact.id, entity_name: r.contact_name, title: r.title, type: r.type, datetime: r.datetime, note: r.note, done: false }).select("id").single();
-      if (data?.id) setReminders(p => p.map(x => x.id === tempId ? { ...x, id: data.id } : x));
+      const row = await createContactReminder({ entity_id: reminderContact.id, entity_name: r.contact_name, title: r.title, type: r.type, datetime: r.datetime, note: r.note });
+      setReminders(p => p.map(x => x.id === tempId ? { ...x, id: row.id } : x));
     } catch {}
   };
 

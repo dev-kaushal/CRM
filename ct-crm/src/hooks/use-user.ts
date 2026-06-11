@@ -1,55 +1,47 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { createClient } from "@/utils/supabase/client";
-import type { User } from "@supabase/supabase-js";
+import { useUser as useClerkUser, useClerk } from "@clerk/nextjs";
+
+interface ShimUser {
+  email?: string;
+  user_metadata: {
+    full_name?: string;
+    first_name?: string;
+    last_name?: string;
+  };
+}
 
 interface UseUserReturn {
-  user: User | null;
+  user: ShimUser | null;
   loading: boolean;
   error: string | null;
   signOut: () => Promise<void>;
 }
 
 export function useUser(): UseUserReturn {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { isLoaded, isSignedIn, user } = useClerkUser();
+  const { signOut: clerkSignOut } = useClerk();
 
-  useEffect(() => {
-    const supabase = createClient();
-
-    // Use getSession() first — reads from local storage cache, no network round-trip.
-    // This makes the initial auth check instant instead of ~300-500ms.
-    const initUser = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user ?? null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to get user");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initUser();
-
-    // Listen for auth state changes (sign-in, sign-out, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
+  const shimUser: ShimUser | null =
+    isSignedIn && user
+      ? {
+          email: user.primaryEmailAddress?.emailAddress,
+          user_metadata: {
+            full_name: user.fullName ?? undefined,
+            first_name: user.firstName ?? undefined,
+            last_name: user.lastName ?? undefined,
+          },
+        }
+      : null;
 
   const signOut = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    setUser(null);
+    await clerkSignOut({ redirectUrl: "/login" });
   };
 
-  return { user, loading, error, signOut };
+  return {
+    user: shimUser,
+    loading: !isLoaded,
+    error: null,
+    signOut,
+  };
 }

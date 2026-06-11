@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/utils/supabase/client";
+import { getAnalyticsData } from "@/server/analytics";
 import { WidgetWrapper } from "@/components/dashboard/widgets/widget-wrapper";
 import {
   TrendingUp, DollarSign, Target, Zap, BarChart3, PieChart,
@@ -80,32 +80,8 @@ export default function AnalyticsPage() {
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const supabase = createClient();
-      const [dealsRes, leadsRes, contractsRes] = await Promise.all([
-        supabase.from("deals").select("*"),
-        supabase.from("leads").select("*"),
-        supabase.from("contracts").select("*"),
-      ]);
-
-      if (dealsRes.error || leadsRes.error || contractsRes.error) throw new Error("Fetch failed");
-
-      const deals = dealsRes.data || [];
-      const leads = leadsRes.data || [];
-      const contracts = contractsRes.data || [];
-
-      if (deals.length > 0 || leads.length > 0) {
-        const wonDeals = deals.filter((d: any) => d.stage === "won" || d.stage === "WON");
-        const lostDeals = deals.filter((d: any) => d.stage === "lost" || d.stage === "LOST");
-        const totalRev = wonDeals.reduce((s: number, d: any) => s + (d.value || d.estimated_value || 0), 0);
-        const avgDeal = wonDeals.length > 0 ? totalRev / wonDeals.length : 0;
-
-        setData(prev => ({
-          ...prev,
-          totalRevenue: totalRev || prev.totalRevenue,
-          avgDealSize: avgDeal || prev.avgDealSize,
-          winLossRatio: { won: wonDeals.length || prev.winLossRatio.won, lost: lostDeals.length || prev.winLossRatio.lost },
-        }));
-      }
+      const result = await getAnalyticsData();
+      setData(result);
     } catch {
       console.warn("Using offline fallback analytics data.");
     } finally {

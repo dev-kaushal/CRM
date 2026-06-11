@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/utils/supabase/client";
+import { useSignUp } from "@clerk/nextjs";
 import { useTheme } from "@/components/theme-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,8 +27,11 @@ export function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
+  const [pendingVerification, setPendingVerification] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
+  const { isLoaded, signUp, setActive } = useSignUp();
 
   useEffect(() => {
     setMounted(true);
@@ -82,33 +85,62 @@ export function RegisterForm() {
       return;
     }
 
+    if (!isLoaded) return;
+
     setIsLoading(true);
 
     try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.signUp({
-        email,
+      const result = await signUp.create({
+        emailAddress: email,
         password,
-        options: {
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-            full_name: `${firstName} ${lastName}`,
-          },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+        firstName,
+        lastName,
       });
 
-      if (error) {
-        toast.error(error.message);
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        toast.success("Account created!");
+        router.push("/dashboard");
       } else {
-        toast.success("Account created! Check your email to verify.", {
+        await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+        setPendingVerification(true);
+        toast.success("Check your email for a verification code.", {
           duration: 5000,
         });
-        router.push("/login");
       }
-    } catch {
-      toast.error("An unexpected error occurred");
+    } catch (err: any) {
+      toast.error(err.errors?.[0]?.message || "An unexpected error occurred");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!verificationCode) {
+      toast.error("Please enter the verification code");
+      return;
+    }
+
+    if (!isLoaded) return;
+
+    setIsLoading(true);
+
+    try {
+      const result = await signUp.attemptEmailAddressVerification({
+        code: verificationCode,
+      });
+
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        toast.success("Account verified!");
+        router.push("/dashboard");
+      } else {
+        toast.error("Verification incomplete. Please try again.");
+      }
+    } catch (err: any) {
+      toast.error(err.errors?.[0]?.message || "Invalid verification code");
     } finally {
       setIsLoading(false);
     }
@@ -291,6 +323,69 @@ export function RegisterForm() {
           >
             <div className="glass-card neon-teal-border w-full max-w-[520px]">
               <div className="p-2">
+                {pendingVerification ? (
+                  <>
+                    {/* Header */}
+                    <div className="text-center mb-6">
+                      <h1 className="cause-font text-2xl font-bold mb-2">Verify Your Email</h1>
+                      <p className="text-sm text-muted-foreground">
+                        Enter the 6-digit code sent to {email}
+                      </p>
+                    </div>
+
+                    {/* Verification Form */}
+                    <form onSubmit={handleVerify} className="space-y-5">
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="verificationCode"
+                          className="text-sm font-semibold tracking-wide"
+                          style={{ color: "var(--text-color)" }}
+                        >
+                          Verification Code
+                        </Label>
+                        <Input
+                          id="verificationCode"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="123456"
+                          value={verificationCode}
+                          onChange={(e) => setVerificationCode(e.target.value)}
+                          disabled={isLoading}
+                          className="ct-input h-12 rounded-xl text-sm text-center tracking-[0.5em]"
+                          style={{
+                            background: "var(--bg-color)",
+                            border: "1px solid var(--card-border)",
+                            color: "var(--text-color)",
+                          }}
+                          required
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="wm-btn-storm w-full h-12 rounded-xl text-sm font-bold tracking-wide"
+                        style={{
+                          opacity: isLoading ? 0.7 : 1,
+                          borderRadius: "12px",
+                        }}
+                      >
+                        {isLoading ? (
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin"
+                              style={{ borderColor: "#f0f8fe", borderTopColor: "transparent" }}
+                            />
+                            <span>Verifying...</span>
+                          </div>
+                        ) : (
+                          <span>Verify Email ⚡</span>
+                        )}
+                      </button>
+                    </form>
+                  </>
+                ) : (
+                  <>
                 {/* Header */}
                 <div className="text-center mb-6">
                   <h1 className="cause-font text-2xl font-bold mb-2">Create Account</h1>
@@ -599,8 +694,8 @@ export function RegisterForm() {
                     </Link>
                   </p>
                 </div>
-
-
+                  </>
+                )}
               </div>
             </div>
           </div>

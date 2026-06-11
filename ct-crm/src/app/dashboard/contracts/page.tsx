@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/utils/supabase/client";
+import { getContracts, updateContractStatus } from "@/server/contracts";
 import { WidgetWrapper } from "@/components/dashboard/widgets/widget-wrapper";
 import { toast } from "sonner";
 import { FileText, Clock, Signature, ShieldCheck, Mail, Send, CheckCircle } from "lucide-react";
@@ -31,26 +31,9 @@ export default function ContractsPage() {
   const fetchContracts = async () => {
     try {
       setLoading(true);
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("contracts")
-        .select("*, deal:deals(title, lead:leads(company))")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      if (data && data.length > 0) {
-        const formatted: Contract[] = data.map(c => ({
-          id: c.id,
-          contract_number: c.contract_number,
-          status: c.status,
-          value: c.value,
-          file_url: c.file_url,
-          signed_at: c.signed_at,
-          expires_at: c.expires_at,
-          deal: { title: c.deal?.title || "CRM Deal Opportunity" },
-          company: c.deal?.lead?.company || "Cosmic Trio Client",
-        }));
-        setContracts(formatted);
+      const rows = await getContracts();
+      if (rows.length > 0) {
+        setContracts(rows as Contract[]);
       }
     } catch {
       console.warn("Using offline fallback contract data.");
@@ -74,19 +57,10 @@ export default function ContractsPage() {
     setContracts(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
 
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("contracts")
-        .update({
-          status: nextStatus,
-          signed_at: nextStatus === "SIGNED" ? new Date().toISOString() : null,
-        })
-        .eq("id", id);
-      
-      if (error) throw error;
+      await updateContractStatus(id, nextStatus);
       toast.success(`Contract status updated to ${nextStatus}`);
     } catch {
-      toast.success(`[Offline/Demo] Contract updated to ${nextStatus}`);
+      toast.error("Failed to update contract status");
     }
   };
 

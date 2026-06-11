@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/utils/supabase/client";
+import { useSignIn } from "@clerk/nextjs";
 import { useTheme } from "@/components/theme-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +23,7 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { theme, toggleTheme } = useTheme();
+  const { isLoaded, signIn, setActive } = useSignIn();
 
   useEffect(() => {
     setMounted(true);
@@ -36,43 +37,43 @@ export function LoginForm() {
       return;
     }
 
+    if (!isLoaded) return;
+
     setIsLoading(true);
 
     try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
+      const result = await signIn.create({
+        identifier: email,
         password,
       });
 
-      if (error) {
-        toast.error(error.message);
-      } else {
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
         toast.success("Welcome back!");
         // Redirect to intended page (from ?from= param) or dashboard
         const from = searchParams.get("from");
         router.replace(from && from.startsWith("/") && !from.startsWith("/login") && !from.startsWith("/register") ? from : "/dashboard");
+      } else {
+        toast.error("Additional verification required");
       }
-    } catch {
-      toast.error("An unexpected error occurred");
+    } catch (err: any) {
+      toast.error(err.errors?.[0]?.message || "Invalid email or password");
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   const handleGoogleLogin = async () => {
+    if (!isLoaded) return;
     setIsLoading(true);
     try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
+      await signIn.authenticateWithRedirect({
+        strategy: "oauth_google",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/dashboard",
       });
-      if (error) throw error;
     } catch (err: any) {
-      toast.error(err.message || "Failed to initialize Google login");
+      toast.error(err.errors?.[0]?.message || "Failed to initialize Google login");
       setIsLoading(false);
     }
   };
@@ -443,7 +444,7 @@ export function LoginForm() {
               {/* Footer Badge */}
               <div className="text-center mt-5 pt-3" style={{ borderTop: "1px solid var(--card-border)", opacity: 0.7 }}>
                 <p className="text-xs text-muted-foreground">
-                  🔒 Enterprise-grade security powered by Supabase
+                  🔒 Enterprise-grade security powered by Clerk
                 </p>
               </div>
             </div>

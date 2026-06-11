@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/utils/supabase/client";
+import { getTeamMembers } from "@/server/users";
 import { WidgetWrapper } from "@/components/dashboard/widgets/widget-wrapper";
 import { toast } from "sonner";
 import {
@@ -61,23 +61,8 @@ export default function TeamPage() {
   const fetchTeam = async () => {
     try {
       setLoading(true);
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      if (data && data.length > 0) {
-        setMembers(data.map((u: any) => ({
-          ...u,
-          assigned_leads: u.assigned_leads || 0,
-          open_deals: u.open_deals || 0,
-          closed_deals: u.closed_deals || 0,
-          revenue_generated: u.revenue_generated || 0,
-          status: u.status || "active",
-        })));
-      }
+      const rows = await getTeamMembers();
+      if (rows.length > 0) setMembers(rows as TeamMember[]);
     } catch {
       console.warn("Using offline fallback team data.");
       setMembers(FALLBACK_TEAM);

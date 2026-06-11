@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/utils/supabase/client";
+import { useUser } from "@clerk/nextjs";
 import { useTheme } from "@/components/theme-provider";
 import "./landing.css";
 
@@ -37,8 +37,9 @@ import {
 export default function Home() {
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
+  const { isSignedIn } = useUser();
   const [mounted, setMounted] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const isLoggedIn = !!isSignedIn;
 
   // 1. Hero Stepper Stage
   const [activeHeroStage, setActiveHeroStage] = useState("lead");
@@ -62,11 +63,6 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true);
-    // Check auth state
-    const sb = createClient();
-    sb.auth.getSession().then(({ data }) => {
-      setIsLoggedIn(!!data.session?.user);
-    });
   }, []);
 
   // Trust numbers intersection trigger

@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createClient } from "@/utils/supabase/client";
+import {
+  getProspects,
+  getProspectReminders,
+  createProspect,
+  updateProspect,
+  updateProspectStatus,
+  deleteProspect,
+  addProspectNote,
+  createProspectReminder,
+} from "@/server/prospects";
 import { toast } from "sonner";
 import {
   Search, Plus, MoreHorizontal, Mail, Building, DollarSign, X, Eye,
@@ -107,28 +116,12 @@ export default function ProspectsPage() {
   const fetchProspects = useCallback(async () => {
     try {
       setLoading(true);
-      const sb = createClient();
-      const [prospectsRes, notesRes, remindersRes] = await Promise.all([
-        sb.from("prospects").select("*, lead:leads(first_name,last_name,company,email,phone)").order("qualified_at", { ascending: false }),
-        sb.from("prospect_notes").select("*").order("created_at", { ascending: false }),
-        sb.from("reminders").select("*").eq("entity_type", "prospect").order("datetime", { ascending: true }),
-      ]);
-      if (prospectsRes.error) throw prospectsRes.error;
-      if (prospectsRes.data?.length) {
-        const notesData = notesRes.data || [];
-        setProspects(prospectsRes.data.map((d: any) => ({
-          ...d,
-          first_name: d.lead?.first_name || d.first_name || "Unknown",
-          last_name: d.lead?.last_name || d.last_name || "",
-          company: d.lead?.company || d.company,
-          email: d.lead?.email || d.email,
-          phone: d.lead?.phone || d.phone,
-          tags: d.tags || [], starred: d.starred || false,
-          pnotes: notesData.filter((n: any) => n.prospect_id === d.id).map((n: any) => ({ id: n.id, text: n.text, created_at: n.created_at, author: n.author || "You" })),
-        })));
+      const [prospectRows, reminderRows] = await Promise.all([getProspects(), getProspectReminders()]);
+      if (prospectRows.length) {
+        setProspects(prospectRows as Prospect[]);
       }
-      if (remindersRes.data?.length) {
-        setReminders(remindersRes.data.map((r: any) => ({ id: r.id, p_id: r.entity_id, p_name: r.entity_name || "", title: r.title, type: r.type, datetime: r.datetime, note: r.note || "", done: r.done || false })));
+      if (reminderRows.length) {
+        setReminders(reminderRows as Reminder[]);
       }
     } catch { } finally { setLoading(false); }
   }, []);
@@ -139,8 +132,8 @@ export default function ProspectsPage() {
   const handleUpdateStatus = useCallback(async (id: string, next: ProspectStatus) => {
     setProspects(p => p.map(x => x.id === id ? { ...x, status: next } : x));
     if (viewP?.id === id) setViewP(v => v ? { ...v, status: next } : v);
-    try { await createClient().from("prospects").update({ status: next }).eq("id", id); toast.success(`Status → ${next.replace(/_/g, " ")}`); }
-    catch { toast.success(`[Demo] Status → ${next.replace(/_/g, " ")}`); }
+    try { await updateProspectStatus(id, next); toast.success(`Status → ${next.replace(/_/g, " ")}`); }
+    catch { toast.error("Failed to update status"); }
   }, [viewP]);
 
   const handleToggleStar = useCallback((id: string) => {
@@ -154,14 +147,18 @@ export default function ProspectsPage() {
     setSubmitting(true);
     const full: Prospect = { id: "", first_name: form.first_name, last_name: form.last_name, email: form.email, phone: form.phone, company: form.company, budget: parseFloat(form.budget) || 0, authority: form.authority, need: form.need, timeline: form.timeline, status: form.status, source: form.source, industry: form.industry, city: form.city, notes: form.notes, tags: form.tags ? form.tags.split(",").map(t => t.trim()).filter(Boolean) : [], starred: false, pnotes: [], qualified_at: new Date().toISOString(), created_at: new Date().toISOString() };
     try {
-      const dbPayload = { budget: parseFloat(form.budget) || 0, authority: form.authority, need: form.need, timeline: form.timeline, qualified_at: new Date().toISOString() };
-      const { data, error } = await createClient().from("prospects").insert(dbPayload).select("id").single();
-      if (error) throw error;
-      setProspects(p => [{ ...full, id: data.id }, ...p]);
+      const row = await createProspect({
+        first_name: form.first_name, last_name: form.last_name, email: form.email,
+        phone: form.phone, company: form.company, budget: parseFloat(form.budget) || 0,
+        authority: form.authority, need: form.need, timeline: form.timeline,
+        status: form.status, source: form.source, industry: form.industry,
+        city: form.city, notes: form.notes,
+        tags: form.tags ? form.tags.split(",").map(t => t.trim()).filter(Boolean) : [],
+      });
+      setProspects(p => [{ ...full, id: row.id }, ...p]);
       toast.success("✅ Prospect saved to database!");
     } catch {
-      setProspects(p => [{ ...full, id: Math.random().toString(36).slice(7) }, ...p]);
-      toast.success("[Demo] Prospect added locally");
+      toast.error("Failed to save prospect");
     } finally { setSubmitting(false); setIsCreateOpen(false); resetForm(); }
   };
 
@@ -174,9 +171,15 @@ export default function ProspectsPage() {
     setProspects(p => p.map(x => x.id === editP.id ? updated : x));
     if (viewP?.id === editP.id) setViewP(updated);
     try {
-      const { error } = await createClient().from("prospects").update({ budget: updates.budget, authority: updates.authority, need: updates.need, timeline: updates.timeline }).eq("id", editP.id);
-      if (error) throw error; toast.success("✅ Prospect updated!");
-    } catch { toast.success("[Demo] Prospect updated locally"); }
+      await updateProspect(editP.id, {
+        first_name: updates.first_name!, last_name: updates.last_name!, email: updates.email,
+        phone: updates.phone, company: updates.company, budget: updates.budget,
+        authority: updates.authority, need: updates.need, timeline: updates.timeline,
+        status: updates.status, industry: updates.industry, city: updates.city,
+        notes: updates.notes, tags: updates.tags,
+      });
+      toast.success("✅ Prospect updated!");
+    } catch { toast.error("Failed to update prospect"); }
     finally { setSubmitting(false); setEditP(null); }
   };
 
@@ -184,8 +187,10 @@ export default function ProspectsPage() {
     if (!deleteP) return;
     setProspects(p => p.filter(x => x.id !== deleteP.id));
     if (viewP?.id === deleteP.id) setViewP(null);
-    toast.success("Prospect removed"); setDeleteP(null);
-    try { await createClient().from("prospects").delete().eq("id", deleteP.id); } catch {}
+    toast.success("Prospect removed");
+    const id = deleteP.id;
+    setDeleteP(null);
+    try { await deleteProspect(id); } catch { toast.error("Failed to delete prospect on server"); }
   };
 
   const handleAddNote = async (p: Prospect) => {
@@ -197,14 +202,12 @@ export default function ProspectsPage() {
     if (viewP?.id === p.id) setViewP(updated);
     setNewNote("");
     try {
-      const { data, error } = await createClient().from("prospect_notes").insert({ prospect_id: p.id, text: noteText, author: "You" }).select("id").single();
-      if (!error && data) {
-        const realNote = { ...tempNote, id: data.id };
-        setProspects(prev => prev.map(x => x.id === p.id ? { ...x, pnotes: x.pnotes?.map(n => n.id === tempNote.id ? realNote : n) || [] } : x));
-        if (viewP?.id === p.id) setViewP(v => v ? { ...v, pnotes: v.pnotes?.map(n => n.id === tempNote.id ? realNote : n) || [] } : v);
-        toast.success("✅ Note saved!");
-      } else { toast.success("Note added"); }
-    } catch { toast.success("Note added"); }
+      const row = await addProspectNote(p.id, noteText);
+      const realNote = { ...tempNote, id: row.id };
+      setProspects(prev => prev.map(x => x.id === p.id ? { ...x, pnotes: x.pnotes?.map(n => n.id === tempNote.id ? realNote : n) || [] } : x));
+      if (viewP?.id === p.id) setViewP(v => v ? { ...v, pnotes: v.pnotes?.map(n => n.id === tempNote.id ? realNote : n) || [] } : v);
+      toast.success("✅ Note saved!");
+    } catch { toast.error("Failed to save note"); }
   };
 
   const handleSetReminder = async () => {
@@ -215,8 +218,8 @@ export default function ProspectsPage() {
     toast.success(`⏰ Reminder set for ${new Date(reminderForm.datetime).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}`);
     setReminderP(null); setReminderForm({ title: "", type: "call", datetime: "", note: "" });
     try {
-      const { data } = await createClient().from("reminders").insert({ entity_type: "prospect", entity_id: reminderP.id, entity_name: r.p_name, title: r.title, type: r.type, datetime: r.datetime, note: r.note, done: false }).select("id").single();
-      if (data?.id) setReminders(p => p.map(x => x.id === tempId ? { ...x, id: data.id } : x));
+      const row = await createProspectReminder({ entity_id: reminderP.id, entity_name: r.p_name, title: r.title, type: r.type, datetime: r.datetime, note: r.note });
+      setReminders(p => p.map(x => x.id === tempId ? { ...x, id: row.id } : x));
     } catch {}
   };
 

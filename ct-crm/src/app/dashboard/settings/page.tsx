@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/utils/supabase/client";
+import { getOrganization, updateOrganizationName } from "@/server/organizations";
 import { toast } from "sonner";
 import {
   Building, Globe, Plug, Shield, Bell, Palette, Save, ExternalLink,
@@ -125,19 +125,19 @@ export default function SettingsPage() {
   const [sessions] = useState(DEMO_SESSIONS);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    getOrganization()
+      .then((row) => setOrg(row))
+      .catch(() => console.warn("Using offline fallback organization data."));
+  }, []);
+
   const handleSaveOrg = async () => {
     setSaving(true);
     try {
-      const supabase = createClient();
-      const { error } = await supabase.from("organizations").update({
-        name: org.name,
-        timezone: org.timezone,
-        currency: org.currency,
-      }).eq("slug", org.slug);
-      if (error) throw error;
+      await updateOrganizationName(org.name);
       toast.success("Organization settings saved");
     } catch {
-      toast.success("Settings saved (offline)");
+      toast.error("Failed to save organization settings");
     }
     setSaving(false);
   };

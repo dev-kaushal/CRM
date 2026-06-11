@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/utils/supabase/client";
+import { getActivities } from "@/server/activities";
 import { WidgetWrapper } from "@/components/dashboard/widgets/widget-wrapper";
 import { toast } from "sonner";
 import {
@@ -100,14 +100,7 @@ export default function ActivitiesPage() {
   const fetchActivities = async () => {
     try {
       setLoading(true);
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("activities")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(100);
-
-      if (error) throw error;
+      const data = await getActivities();
       if (data && data.length > 0) setActivities(data);
     } catch {
       console.warn("Using offline fallback activities data.");
