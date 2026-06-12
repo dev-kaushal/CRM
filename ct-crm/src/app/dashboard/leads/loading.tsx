@@ -1,6 +1,6 @@
 export default function LeadsLoading() {
   return (
-    <div className="space-y-6 max-w-[1440px] mx-auto animate-pulse">
+    <div className="space-y-6 max-w-[1440px] mx-auto is-pulsing">
       {/* Header skeleton */}
       <div className="flex items-center justify-between">
         <div className="space-y-2">

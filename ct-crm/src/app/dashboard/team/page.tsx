@@ -179,7 +179,7 @@ export default function TeamPage() {
       ) : filtered.length === 0 ? (
         <WidgetWrapper empty emptyTitle="No team members found" emptyDescription="Invite your first team member to get started."><div /></WidgetWrapper>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 view-transition">
           {filtered.map(member => {
             const roleConf = ROLE_CONFIG[member.role];
             const initials = getInitials(member.full_name).toUpperCase();
@@ -254,8 +254,8 @@ export default function TeamPage() {
 
       {/* Invite Modal */}
       {isInviteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setIsInviteOpen(false)}>
-          <div className="w-full max-w-md rounded-2xl p-6 border space-y-5" style={{ background: "var(--card-bg-solid)", borderColor: "var(--card-border)" }} onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 t-modal-backdrop" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setIsInviteOpen(false)}>
+          <div className="w-full max-w-md rounded-2xl p-6 border space-y-5 t-modal-pop" style={{ background: "var(--card-bg-solid)", borderColor: "var(--card-border)" }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="cause-font text-lg font-bold" style={{ color: "var(--text-color)" }}>Invite Team Member</h2>

@@ -65,9 +65,22 @@ Checkboxes are ticked only after the corresponding work is implemented AND verif
 - [x] Leads page (`src/app/dashboard/leads/page.tsx`): Table/Kanban/Grid switcher replaced with `ViewSwitcher`; all 6 dialogs (View Drawer, Create/Edit Drawer, Delete, Add Note, Set Reminder, Column Editor) given `.t-modal-backdrop` + `.t-drawer-panel`/`.t-modal-pop`.
 - [x] Prospects page (`src/app/dashboard/prospects/page.tsx`): same 6-dialog transition pattern applied (View Drawer, Create/Edit Drawer, Delete, Add Note, Set Reminder, Column Editor); table container gets `.view-transition` fade-in.
 - [x] Verify: `npx tsc --noEmit` clean; dev server starts cleanly and `/`, `/dashboard`, `/dashboard/leads`, `/dashboard/prospects` respond/redirect correctly.
-- [ ] TODO (next session): roll out the same `ViewSwitcher` + modal/drawer + skeleton-reveal pattern to remaining pages: deals, contracts, customers, contacts, tasks, team, activities, analytics, settings, workspace-engine, dashboard home (see checklist below).
+- [x] Rolled out the same `ViewSwitcher` + modal/drawer + skeleton-reveal pattern to all remaining pages:
+  - Deals (`src/app/dashboard/deals/page.tsx`): Kanban view + drawer already had `view-transition`/`t-modal-backdrop`/`t-drawer-panel` from prior work; only `loading.tsx` needed `is-pulsing`.
+  - Contracts (`src/app/dashboard/contracts/page.tsx`): no modals/switcher (static two-column layout) — added `view-transition` to the main content grid; `loading.tsx` → `is-pulsing`.
+  - Customers (`src/app/dashboard/customers/page.tsx`): single table view (no switcher) — `view-transition` on table container; all 6 dialogs (View Drawer, Create/Edit Drawer, Delete, Add Note, Reminder, Column Editor) given `.t-modal-backdrop` + `.t-drawer-panel`/`.t-modal-pop`; `loading.tsx` → `is-pulsing`.
+  - Contacts (`src/app/dashboard/contacts/page.tsx`): single table view (no switcher) — same 6-dialog transition pattern as customers; `view-transition` on table container; `loading.tsx` → `is-pulsing`.
+  - Tasks (`src/app/dashboard/tasks/page.tsx`): List/Board/Calendar switcher replaced with `ViewSwitcher`; each view container gets `view-transition` + `key`; Create Task modal given `.t-modal-backdrop`/`.t-modal-pop`; `loading.tsx` → `is-pulsing`.
+  - Team (`src/app/dashboard/team/page.tsx`): single grid view (no switcher, no loading.tsx) — `view-transition` on member cards grid; Invite modal given `.t-modal-backdrop`/`.t-modal-pop`.
+  - Activities (`src/app/dashboard/activities/page.tsx`): no modals/switcher — `view-transition` on the grouped timeline container.
+  - Analytics (`src/app/dashboard/analytics/page.tsx`): no modals/switcher (static KPI/chart grids) — no page.tsx changes applicable; `loading.tsx` → `is-pulsing`.
+  - Settings (`src/app/dashboard/settings/page.tsx`): tab nav (Organization/Integrations/Custom Fields/Notifications/Security) replaced with `ViewSwitcher`; each tab panel gets `view-transition` + `key`.
+  - Workspace Engine (`src/app/dashboard/workspace-engine/page.tsx`): minimal page (heading + `AIReadySection`), already covered by global `.t-route` — no changes applicable.
+  - Dashboard home (`src/app/dashboard/page.tsx`): route-level `loading.tsx` already used `is-pulsing`; fixed widget-level skeletons instead — `WidgetSkeleton` in `widget-wrapper.tsx` and the `KPICard` loading branch now use `is-pulsing`.
+  - Also fixed `leads/loading.tsx`, `prospects/loading.tsx`, and `tasks/loading.tsx` (missed in the initial Phase 7 pass) → `is-pulsing`.
+- [x] Verify: `npx tsc --noEmit` clean across the whole project after full rollout; dev server starts cleanly with no compile errors.
 
-### Replication Checklist (per remaining page)
+### Replication Checklist (reference, applied to every page above)
 1. If the page has a Table/Kanban/Grid (or similar) switcher, replace inline buttons with `<ViewSwitcher value={...} onChange={...} options={[...]} />` from `@/components/dashboard/view-switcher`.
 2. For each view container (Table/Kanban/Grid wrapper div), add `view-transition` to the className (with a `key="..."` if multiple views share a parent).
 3. For every centered modal: add `t-modal-backdrop` to the backdrop `<div className="absolute inset-0 bg-black/50...">` and `t-modal-pop` to the panel `<div className="relative ... rounded-2xl ... shadow-2xl">`.

@@ -85,7 +85,7 @@ export default function ContractsPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start view-transition">
         {/* Left Side: Ledger List */}
         <div className="lg:col-span-8 space-y-4">
           <div className="p-6 rounded-2xl border" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>

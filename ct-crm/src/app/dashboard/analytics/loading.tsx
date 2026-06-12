@@ -1,6 +1,6 @@
 export default function AnalyticsLoading() {
   return (
-    <div className="space-y-6 max-w-[1440px] mx-auto animate-pulse">
+    <div className="space-y-6 max-w-[1440px] mx-auto is-pulsing">
       <div className="space-y-2">
         <div className="h-7 w-36 rounded-lg" style={{ background: "var(--accent)" }} />
         <div className="h-4 w-64 rounded" style={{ background: "var(--accent)" }} />

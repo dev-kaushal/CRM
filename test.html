@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Infinite 3D Hill Climb Racing</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #fff;
+      background: #07111f;
+      user-select: none;
+    }
+    canvas { display: block; }
+    .panel {
+      position: fixed;
+      z-index: 10;
+      border: 1px solid rgba(255,255,255,.14);
+      background: linear-gradient(135deg, rgba(8, 18, 35, .86), rgba(13, 31, 54, .72));
+      backdrop-filter: blur(14px);
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+      border-radius: 18px;
+    }
+    #menu {
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 50% 20%, rgba(45, 145, 255, .24), rgba(3, 8, 18, .94) 62%);
+    }
+    .menu-card {
+      width: min(920px, calc(100vw - 28px));
+      padding: 28px;
+    }
+    h1 { margin: 0 0 8px; font-size: clamp(34px, 6vw, 70px); letter-spacing: -2px; }
+    .subtitle { margin: 0 0 24px; color: #b9c9dd; font-size: 16px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .option-group { padding: 18px; border-radius: 16px; background: rgba(255,255,255,.07); }
+    .option-group h2 { margin: 0 0 12px; font-size: 16px; color: #dff1ff; }
+    .cards { display: grid; gap: 10px; }
+    .choice {
+      border: 1px solid rgba(255,255,255,.13);
+      background: rgba(255,255,255,.07);
+      color: #fff;
+      text-align: left;
+      padding: 14px;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: .18s ease;
+    }
+    .choice:hover, .choice.active { border-color: #64d2ff; background: rgba(77, 184, 255, .18); transform: translateY(-1px); }
+    .choice strong { display: block; font-size: 15px; }
+    .choice span { display: block; margin-top: 4px; color: #b6c8dc; font-size: 12px; }
+    #startBtn, #resetBtn {
+      width: 100%; margin-top: 20px; padding: 15px 18px; border: 0; border-radius: 15px;
+      color: #04111f; font-weight: 900; font-size: 16px; cursor: pointer;
+      background: linear-gradient(135deg, #70f0ff, #95ff8b); box-shadow: 0 12px 34px rgba(92, 235, 255, .25);
+    }
+    #hud { top: 14px; left: 14px; padding: 14px 16px; min-width: 260px; display: none; }
+    #hud .row { display: flex; justify-content: space-between; gap: 22px; margin: 5px 0; color: #cde0f4; }
+    #hud strong { color: #fff; font-variant-numeric: tabular-nums; }
+    #controls { right: 14px; top: 14px; padding: 14px 16px; width: 310px; display: none; color: #cde0f4; font-size: 13px; }
+    #controls b { color: #fff; }
+    #mobileControls { display: none; position: fixed; z-index: 12; inset: auto 0 18px 0; pointer-events: none; }
+    .touch-zone { display: flex; justify-content: space-between; padding: 0 20px; }
+    .touch-cluster { display: flex; gap: 12px; pointer-events: auto; }
+    .touch-btn {
+      width: 68px; height: 68px; border-radius: 22px; border: 1px solid rgba(255,255,255,.18);
+      background: rgba(12, 27, 47, .64); color: #fff; font-weight: 900; font-size: 22px;
+      backdrop-filter: blur(8px);
+    }
+    #message { bottom: 18px; left: 50%; transform: translateX(-50%); padding: 12px 16px; display: none; color: #dff4ff; }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } #controls { display:none!important; } #mobileControls { display:block; } }
+  </style>
+</head>
+<body>
+  <div id="menu">
+    <div class="panel menu-card">
+      <h1>3D Hill Climb</h1>
+      <p class="subtitle">Infinite procedural terrain, gravity, suspension, acceleration, braking, mid-air pitch control, fuel, checkpoints, and smooth chase camera.</p>
+      <div class="grid">
+        <section class="option-group"><h2>Vehicle</h2><div id="vehicleChoices" class="cards"></div></section>
+        <section class="option-group"><h2>Map</h2><div id="mapChoices" class="cards"></div></section>
+      </div>
+      <button id="startBtn">Start Race</button>
+    </div>
+  </div>
+
+  <div id="hud" class="panel">
+    <div class="row"><span>Speed</span><strong id="speed">0 km/h</strong></div>
+    <div class="row"><span>Distance</span><strong id="distance">0 m</strong></div>
+    <div class="row"><span>Fuel</span><strong id="fuel">100%</strong></div>
+    <div class="row"><span>Air Time</span><strong id="air">0.0s</strong></div>
+    <button id="resetBtn">Reset Vehicle</button>
+  </div>
+  <div id="controls" class="panel">
+    <b>Controls</b><br>W / ↑: Accelerate · S / ↓: Brake / Reverse<br>A / D or ← / →: Steer / Air pitch<br>Space: Handbrake · R: Reset · Esc: Menu
+  </div>
+  <div id="message" class="panel"></div>
+  <div id="mobileControls">
+    <div class="touch-zone">
+      <div class="touch-cluster"><button class="touch-btn" data-key="ArrowLeft">◀</button><button class="touch-btn" data-key="ArrowRight">▶</button></div>
+      <div class="touch-cluster"><button class="touch-btn" data-key="Space">●</button><button class="touch-btn" data-key="ArrowDown">▼</button><button class="touch-btn" data-key="ArrowUp">▲</button></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+
+    const vehicles = {
+      buggy: { name:'Trail Buggy', desc:'Balanced handling and suspension.', color:0xff4848, mass:980, power:38, grip:9.5, suspension:18, damping:6, fuel:100 },
+      monster: { name:'Monster Truck', desc:'High clearance, heavy, stable on rough hills.', color:0x7cff6b, mass:1450, power:48, grip:8.3, suspension:24, damping:7.5, fuel:120 },
+      rally: { name:'Rally Coupe', desc:'Fast and agile, lower clearance.', color:0x5ec8ff, mass:1120, power:55, grip:11, suspension:14, damping:5.2, fuel:90 }
+    };
+    const maps = {
+      forest: { name:'Rolling Forest', desc:'Smooth green hills and pine valleys.', sky:0x8fd3ff, ground:0x2f8f45, amp:9, freq:.035, rough:.45, trees:true },
+      desert: { name:'Dune Desert', desc:'Wide sandy climbs with flowing dunes.', sky:0xffc476, ground:0xd49a4a, amp:12, freq:.026, rough:.35, trees:false },
+      alpine: { name:'Alpine Peaks', desc:'Sharper mountain slopes and snow caps.', sky:0xbedcff, ground:0x9fb5bd, amp:17, freq:.042, rough:.78, trees:true }
+    };
+
+    let selectedVehicle='buggy', selectedMap='forest', started=false;
+    const vehicleChoices = document.getElementById('vehicleChoices');
+    const mapChoices = document.getElementById('mapChoices');
+    function makeChoices() {
+      vehicleChoices.innerHTML = Object.entries(vehicles).map(([id,v]) => `<button class="choice ${id===selectedVehicle?'active':''}" data-type="vehicle" data-id="${id}"><strong>${v.name}</strong><span>${v.desc}</span></button>`).join('');
+      mapChoices.innerHTML = Object.entries(maps).map(([id,m]) => `<button class="choice ${id===selectedMap?'active':''}" data-type="map" data-id="${id}"><strong>${m.name}</strong><span>${m.desc}</span></button>`).join('');
+      document.querySelectorAll('.choice').forEach(b => b.onclick = () => { if (b.dataset.type==='vehicle') selectedVehicle=b.dataset.id; else selectedMap=b.dataset.id; makeChoices(); });
+    }
+    makeChoices();
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x8fd3ff, 90, 430);
+    const camera = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, .1, 1200);
+    const renderer = new THREE.WebGLRenderer({ antialias:true });
+    renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.shadowMap.enabled=true; document.body.appendChild(renderer.domElement);
+    scene.add(new THREE.HemisphereLight(0xffffff,0x334455,1.7));
+    const sun = new THREE.DirectionalLight(0xffffff,2.2); sun.position.set(80,140,40); sun.castShadow=true; sun.shadow.camera.far=360; scene.add(sun);
+
+    const keys = {}; addEventListener('keydown', e => { keys[e.code]=true; if(e.code==='Escape') showMenu(); if(e.code==='KeyR') resetCar(); }); addEventListener('keyup', e => keys[e.code]=false);
+    document.querySelectorAll('.touch-btn').forEach(btn => { const k=btn.dataset.key; ['pointerdown','touchstart'].forEach(ev=>btn.addEventListener(ev,e=>{e.preventDefault();keys[k]=true;})); ['pointerup','pointercancel','touchend'].forEach(ev=>btn.addEventListener(ev,e=>{e.preventDefault();keys[k]=false;})); });
+
+    let car, carBody, wheels=[], terrainGroup=new THREE.Group(), decoGroup=new THREE.Group(), fuelPickups=new THREE.Group(); scene.add(terrainGroup,decoGroup,fuelPickups);
+    let cfg=vehicles.buggy, map=maps.forest, velocity=new THREE.Vector3(), yaw=0, pitch=0, roll=0, fuel=100, distance=0, airTime=0, gameOver=false;
+    const gravity = -28, segmentLength=24, segmentWidth=90, visibleSegments=42;
+    let generatedFrom=-10, generatedTo=-10;
+
+    const hash = n => { const x = Math.sin(n*127.1+311.7)*43758.5453; return x - Math.floor(x); };
+    function noise(x) { const i=Math.floor(x), f=x-i, u=f*f*(3-2*f); return THREE.MathUtils.lerp(hash(i), hash(i+1), u)*2-1; }
+    function heightAt(x,z=0) {
+      const center = map.amp*(Math.sin(x*map.freq) + .55*noise(x*.045) + map.rough*.5*Math.sin(x*.115+noise(x*.01)*4));
+      const crown = .015*z*z + Math.sin(x*.02+z*.05)*.8;
+      return center - crown;
+    }
+    function slopeAt(x) { return (heightAt(x+1)-heightAt(x-1))*0.5; }
+
+    function createTerrainSegment(i) {
+      const geo = new THREE.PlaneGeometry(segmentLength, segmentWidth, 10, 20); geo.rotateX(-Math.PI/2);
+      const baseX = i*segmentLength;
+      for (const p of geo.attributes.position.array.keys()) {}
+      const pos = geo.attributes.position;
+      for (let n=0;n<pos.count;n++) {
+        const x = baseX + pos.getX(n), z = pos.getZ(n); pos.setY(n, heightAt(x,z));
+      }
+      geo.computeVertexNormals();
+      const mat = new THREE.MeshStandardMaterial({ color:map.ground, roughness:.95, metalness:0 });
+      const mesh = new THREE.Mesh(geo, mat); mesh.position.x = baseX + segmentLength/2; mesh.receiveShadow=true; terrainGroup.add(mesh);
+      if (map.trees && i % 2 === 0) addTrees(baseX);
+      if (i % 7 === 4) addFuel(baseX + segmentLength*.5);
+    }
+    function addTrees(x) {
+      for(let j=0;j<4;j++){ const side = hash(x+j)>.5?1:-1, z=side*(26+hash(x+j+2)*18), tx=x+hash(x+j+4)*segmentLength, y=heightAt(tx,z);
+        const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.35,.5,3,6),new THREE.MeshStandardMaterial({color:0x6b3e22})); trunk.position.set(tx,y+1.5,z); trunk.castShadow=true;
+        const leaf=new THREE.Mesh(new THREE.ConeGeometry(2.2,6,8),new THREE.MeshStandardMaterial({color: selectedMap==='alpine'?0x315c46:0x145c2b})); leaf.position.set(tx,y+5,z); leaf.castShadow=true; decoGroup.add(trunk,leaf); }
+    }
+    function addFuel(x) { const z=(hash(x)*2-1)*12, y=heightAt(x,z)+2; const can=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.1,2.2,16),new THREE.MeshStandardMaterial({color:0xffdd33,emissive:0x332200})); can.position.set(x,y,z); can.userData.fuel=true; can.castShadow=true; fuelPickups.add(can); }
+    function updateTerrain() {
+      const current = Math.floor(car.position.x/segmentLength); const from=current-8, to=current+visibleSegments;
+      for(let i=generatedTo+1;i<=to;i++) createTerrainSegment(i); generatedTo=Math.max(generatedTo,to); generatedFrom=Math.min(generatedFrom,from);
+      [terrainGroup,decoGroup,fuelPickups].forEach(g => { [...g.children].forEach(o => { if(o.position.x < car.position.x-260) g.remove(o); }); });
+    }
+
+    function createCar() {
+      if(car) scene.remove(car); car=new THREE.Group(); carBody=new THREE.Mesh(new THREE.BoxGeometry(4.8,1.35,2.8),new THREE.MeshStandardMaterial({color:cfg.color,roughness:.45,metalness:.2})); carBody.position.y=1.15; carBody.castShadow=true; car.add(carBody);
+      const cabin=new THREE.Mesh(new THREE.BoxGeometry(2.4,1.2,2.35),new THREE.MeshStandardMaterial({color:0x111927,roughness:.25,metalness:.4})); cabin.position.set(-.35,2.25,0); cabin.castShadow=true; car.add(cabin);
+      wheels=[]; const wheelMat=new THREE.MeshStandardMaterial({color:0x111111,roughness:.8}); [[1.55,.95,1.55],[-1.55,.95,1.55],[1.55,.95,-1.55],[-1.55,.95,-1.55]].forEach(p=>{ const w=new THREE.Mesh(new THREE.CylinderGeometry(.72,.72,.55,24),wheelMat); w.rotation.z=Math.PI/2; w.position.set(...p); w.castShadow=true; wheels.push(w); car.add(w); });
+      scene.add(car); resetCar();
+    }
+    function resetCar() { velocity.set(0,0,0); yaw=0; pitch=0; roll=0; gameOver=false; fuel=cfg.fuel; airTime=0; const x=Math.max(0,distance); car?.position.set(x,heightAt(x)+3,0); showMessage('Vehicle reset'); }
+    function showMessage(t){ const m=document.getElementById('message'); m.textContent=t; m.style.display='block'; clearTimeout(showMessage.t); showMessage.t=setTimeout(()=>m.style.display='none',1800); }
+    function showMenu(){ started=false; document.getElementById('menu').style.display='grid'; document.getElementById('hud').style.display='none'; document.getElementById('controls').style.display='none'; }
+
+    document.getElementById('startBtn').onclick = () => { cfg=vehicles[selectedVehicle]; map=maps[selectedMap]; scene.background=new THREE.Color(map.sky); scene.fog.color.set(map.sky); terrainGroup.clear(); decoGroup.clear(); fuelPickups.clear(); generatedTo=-10; distance=0; fuel=cfg.fuel; createCar(); updateTerrain(); document.getElementById('menu').style.display='none'; document.getElementById('hud').style.display='block'; document.getElementById('controls').style.display='block'; started=true; };
+    document.getElementById('resetBtn').onclick = resetCar;
+
+    const clock = new THREE.Clock();
+    function step(dt) {
+      if(!started || !car) return;
+      dt=Math.min(dt,.033); updateTerrain();
+      const forward = new THREE.Vector3(Math.cos(yaw),0,Math.sin(yaw));
+      const right = new THREE.Vector3(-Math.sin(yaw),0,Math.cos(yaw));
+      const groundY = heightAt(car.position.x, car.position.z), grounded = car.position.y <= groundY + 1.18;
+      const slope = slopeAt(car.position.x); const targetPitch = Math.atan(slope);
+      const throttle = (keys.KeyW||keys.ArrowUp) ? 1 : (keys.KeyS||keys.ArrowDown) ? -0.62 : 0;
+      const steer = (keys.KeyA||keys.ArrowLeft) ? 1 : (keys.KeyD||keys.ArrowRight) ? -1 : 0;
+      const speed = velocity.dot(forward);
+      if(fuel>0 && throttle!==0) { velocity.addScaledVector(forward, throttle * cfg.power / cfg.mass * 980 * dt); fuel -= Math.abs(throttle)*dt*1.8; }
+      if(grounded) {
+        car.position.y = groundY + 1.18; velocity.y = Math.max(0, velocity.y);
+        velocity.x += -Math.sin(targetPitch) * 11 * dt; velocity.multiplyScalar(1 - dt*.18);
+        const lateral = velocity.dot(right); velocity.addScaledVector(right, -lateral * Math.min(1, cfg.grip*dt));
+        yaw += steer * Math.min(Math.abs(speed)*.03, 1.15) * dt * (keys.Space?.45:1);
+        pitch += (targetPitch - pitch) * Math.min(1, cfg.suspension*dt/cfg.mass*80); roll += ((-steer*Math.min(Math.abs(speed),30)*.018) - roll) * dt*5;
+        airTime = 0;
+      } else {
+        velocity.y += gravity * dt; pitch += steer * dt * 1.8; airTime += dt;
+      }
+      if(keys.Space && grounded) velocity.multiplyScalar(1-dt*1.8);
+      car.position.addScaledVector(velocity, dt);
+      car.position.z += -car.position.z * dt * .55;
+      if(car.position.y < heightAt(car.position.x,car.position.z)-8 || fuel<=0 && Math.abs(speed)<.8) { gameOver=true; showMessage(fuel<=0?'Out of fuel! Press R to reset':'Crashed! Press R to reset'); }
+      car.rotation.set(pitch, -yaw, roll);
+      wheels.forEach(w => w.rotation.x += speed*dt*1.7);
+      distance = Math.max(distance, car.position.x);
+      fuelPickups.children.forEach(o => { o.rotation.y += dt*2; if(o.visible && o.position.distanceTo(car.position)<4){ o.visible=false; fuel=Math.min(cfg.fuel, fuel+28); showMessage('Fuel collected +28%'); }});
+      camera.position.lerp(new THREE.Vector3(car.position.x-13, car.position.y+8, car.position.z+15), .08); camera.lookAt(car.position.x+8, car.position.y+1.6, car.position.z);
+      document.getElementById('speed').textContent = `${Math.round(Math.abs(speed)*3.6)} km/h`;
+      document.getElementById('distance').textContent = `${Math.floor(distance)} m`;
+      document.getElementById('fuel').textContent = `${Math.max(0,Math.round(fuel))}%`;
+      document.getElementById('air').textContent = `${airTime.toFixed(1)}s`;
+    }
+    function animate(){ requestAnimationFrame(animate); step(clock.getDelta()); renderer.render(scene,camera); }
+    addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+    animate();
+  </script>
+</body>
+</html>

@@ -149,7 +149,7 @@ function SidebarNavItem({
         />
       )}
 
-      <div className="flex items-center justify-center w-5 h-5 shrink-0">
+      <div className="flex items-center justify-center w-5 h-5 shrink-0 transition-transform duration-200 ease-out group-hover:scale-125 group-hover:-rotate-6">
         <IconComponent size={18} strokeWidth={isActive ? 2.5 : 2} />
       </div>
 

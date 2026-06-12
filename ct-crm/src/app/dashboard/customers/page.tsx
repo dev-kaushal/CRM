@@ -278,7 +278,7 @@ export default function CustomersPage() {
           <button onClick={() => { resetForm(); setIsCreateOpen(true); }} className="mt-4 h-9 px-4 rounded-xl text-xs font-semibold flex items-center gap-1.5" style={{ background: "var(--graph-to)", color: "#0a0a0a" }}><Plus size={14} />New Customer</button>
         </div>
       ) : (
-        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "var(--card-border)" }}>
+        <div className="rounded-2xl border overflow-hidden view-transition" style={{ borderColor: "var(--card-border)" }}>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs min-w-[850px]" style={{ background: "var(--card-bg)" }}>
               <thead>
@@ -382,8 +382,8 @@ export default function CustomersPage() {
       {/* ── VIEW DRAWER ── */}
       {viewCust && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setViewCust(null)} />
-          <div className="relative ml-auto h-full w-full max-w-[520px] flex flex-col overflow-hidden shadow-2xl" style={{ background: "var(--card-bg-solid)", borderLeft: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 t-modal-backdrop" onClick={() => setViewCust(null)} />
+          <div className="relative ml-auto h-full w-full max-w-[520px] flex flex-col overflow-hidden shadow-2xl t-drawer-panel" style={{ background: "var(--card-bg-solid)", borderLeft: "1px solid var(--card-border)" }}>
             <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom: "1px solid var(--card-border)" }}>
               <div className="flex items-center gap-2.5">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black shrink-0" style={{ background: `linear-gradient(135deg,${getHealthColor(viewCust.health_score||50)}88,${getHealthColor(viewCust.health_score||50)}33)`, color: getHealthColor(viewCust.health_score||50) }}>{viewCust.contact_name[0]}</div>
@@ -470,8 +470,8 @@ export default function CustomersPage() {
       {/* ── CREATE/EDIT DRAWER ── */}
       {(isCreateOpen || editCust) && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/50" onClick={() => { setIsCreateOpen(false); setEditCust(null); }} />
-          <div className="relative ml-auto h-full w-full max-w-[520px] overflow-y-auto shadow-2xl" style={{ background: "var(--card-bg-solid)", borderLeft: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 t-modal-backdrop" onClick={() => { setIsCreateOpen(false); setEditCust(null); }} />
+          <div className="relative ml-auto h-full w-full max-w-[520px] overflow-y-auto shadow-2xl t-drawer-panel" style={{ background: "var(--card-bg-solid)", borderLeft: "1px solid var(--card-border)" }}>
             <form onSubmit={editCust ? handleEdit : handleCreate}>
               <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4" style={{ background: "var(--card-bg-solid)", borderBottom: "1px solid var(--card-border)" }}>
                 <h2 className="cause-font text-lg font-bold" style={{ color: "var(--text-color)" }}>{editCust ? "Edit Customer" : "New Customer"}</h2>
@@ -529,8 +529,8 @@ export default function CustomersPage() {
       {/* ── DELETE MODAL ── */}
       {deleteCust && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteCust(null)} />
-          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setDeleteCust(null)} />
+          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl t-modal-pop" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
             <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(239,68,68,.1)" }}><Trash2 size={22} style={{ color: "#ef4444" }} /></div>
             <h3 className="text-base font-bold text-center mb-1" style={{ color: "var(--text-color)" }}>Remove Customer?</h3>
             <p className="text-sm text-muted-foreground text-center mb-5"><strong style={{ color: "var(--text-color)" }}>{deleteCust.contact_name}</strong> from <strong style={{ color: "var(--text-color)" }}>{deleteCust.company || "Unknown"}</strong> will be permanently removed.</p>
@@ -545,8 +545,8 @@ export default function CustomersPage() {
       {/* ── ADD NOTE ── */}
       {noteForCust && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setNoteForCust(null)} />
-          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setNoteForCust(null)} />
+          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl t-modal-pop" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
             <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold" style={{ color: "var(--text-color)" }}>Add Note — {noteForCust.contact_name}</h3><button onClick={() => setNoteForCust(null)}><X size={15} /></button></div>
             <textarea autoFocus rows={4} value={newNote} onChange={e => setNewNote(e.target.value)} className="w-full border rounded-xl p-3 text-sm outline-none resize-none" style={{ borderColor: "var(--card-border)", background: "var(--accent)", color: "var(--text-color)" }} placeholder="Write note..." />
             <div className="flex gap-3 mt-4">
@@ -560,8 +560,8 @@ export default function CustomersPage() {
       {/* ── REMINDER ── */}
       {reminderCust && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setReminderCust(null)} />
-          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setReminderCust(null)} />
+          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl t-modal-pop" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
             <div className="flex items-center justify-between mb-5"><div><h3 className="text-sm font-bold" style={{ color: "var(--text-color)" }}>Set Reminder</h3><p className="text-xs text-muted-foreground">For: {reminderCust.contact_name}</p></div><button onClick={() => setReminderCust(null)}><X size={15} /></button></div>
             <div className="space-y-3">
               <KFF label="Title *"><input value={reminderForm.title} onChange={e => setReminderForm(f => ({ ...f, title: e.target.value }))} className="kct-fi" placeholder="QBR call" /></KFF>
@@ -582,8 +582,8 @@ export default function CustomersPage() {
       {/* ── COLUMN EDITOR ── */}
       {columnEditorOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setColumnEditorOpen(false)} />
-          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setColumnEditorOpen(false)} />
+          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl t-modal-pop" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
             <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold" style={{ color: "var(--text-color)" }}><SlidersHorizontal size={14} className="inline mr-1.5" />Customise Columns</h3><button onClick={() => setColumnEditorOpen(false)}><X size={14} /></button></div>
             <div className="space-y-1.5">
               {ALL_COLUMNS.map(col => (

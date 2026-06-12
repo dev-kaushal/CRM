@@ -20,7 +20,7 @@ export function KPICard({ metric, loading }: KPICardProps) {
           backdropFilter: "blur(12px)",
         }}
       >
-        <div className="animate-pulse space-y-3">
+        <div className="is-pulsing space-y-3">
           <div className="flex items-center justify-between">
             <div className="h-3 w-20 rounded" style={{ background: "var(--accent)" }} />
             <div className="h-6 w-6 rounded" style={{ background: "var(--accent)" }} />

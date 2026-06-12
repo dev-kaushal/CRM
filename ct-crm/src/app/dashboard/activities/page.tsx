@@ -176,7 +176,7 @@ export default function ActivitiesPage() {
       ) : filtered.length === 0 ? (
         <WidgetWrapper empty emptyTitle="No activities found" emptyDescription="Activity logs will appear here as events occur."><div /></WidgetWrapper>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-8 view-transition">
           {groupOrder.filter(g => groups[g]?.length).map(group => (
             <div key={group}>
               {/* Date group header */}

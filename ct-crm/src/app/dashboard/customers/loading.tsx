@@ -1,6 +1,6 @@
 export default function CustomersLoading() {
   return (
-    <div className="space-y-6 max-w-[1440px] mx-auto animate-pulse">
+    <div className="space-y-6 max-w-[1440px] mx-auto is-pulsing">
       <div className="flex items-center justify-between">
         <div className="space-y-2">
           <div className="h-7 w-40 rounded-lg" style={{ background: "var(--accent)" }} />

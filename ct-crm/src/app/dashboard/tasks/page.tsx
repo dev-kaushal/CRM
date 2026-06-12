@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getTasks, createTask, updateTaskStatus } from "@/server/tasks";
 import { WidgetWrapper } from "@/components/dashboard/widgets/widget-wrapper";
+import { ViewSwitcher } from "@/components/dashboard/view-switcher";
 import { toast } from "sonner";
 import {
   Search, Plus, List, LayoutGrid, Calendar as CalendarIcon,
@@ -224,18 +225,16 @@ export default function TasksPage() {
         </select>
 
         {/* View switcher */}
-        <div className="flex items-center gap-0.5 ml-auto p-1 rounded-xl border" style={{ borderColor: "var(--card-border)" }}>
-          {([["List", List], ["Board", LayoutGrid], ["Calendar", CalendarIcon]] as const).map(([v, Icon]) => (
-            <button
-              key={v}
-              onClick={() => setView(v as "List" | "Board" | "Calendar")}
-              className="h-7 w-7 flex items-center justify-center rounded-lg transition-all duration-200"
-              style={{ background: view === v ? "var(--accent)" : "transparent", color: view === v ? "var(--text-color)" : "var(--muted-foreground)" }}
-              title={v}
-            >
-              <Icon size={14} />
-            </button>
-          ))}
+        <div className="ml-auto">
+          <ViewSwitcher
+            value={view}
+            onChange={(id) => setView(id as "List" | "Board" | "Calendar")}
+            options={[
+              { id: "List", label: "List", icon: <List size={13} /> },
+              { id: "Board", label: "Board", icon: <LayoutGrid size={13} /> },
+              { id: "Calendar", label: "Calendar", icon: <CalendarIcon size={13} /> },
+            ]}
+          />
         </div>
       </div>
 
@@ -261,7 +260,7 @@ export default function TasksPage() {
         <WidgetWrapper empty emptyTitle="No tasks found" emptyDescription="Create your first task to get started."><div /></WidgetWrapper>
       ) : view === "List" ? (
         /* ---- LIST VIEW ---- */
-        <div className="overflow-x-auto rounded-2xl border" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
+        <div key="list-view" className="overflow-x-auto rounded-2xl border view-transition" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b" style={{ borderColor: "var(--card-border)", color: "var(--muted-foreground)" }}>
@@ -335,7 +334,7 @@ export default function TasksPage() {
         </div>
       ) : view === "Board" ? (
         /* ---- BOARD VIEW ---- */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div key="board-view" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 view-transition">
           {STATUSES.map(status => {
             const col = filtered.filter(t => t.status === status);
             return (
@@ -382,7 +381,7 @@ export default function TasksPage() {
         </div>
       ) : (
         /* ---- CALENDAR VIEW ---- */
-        <div className="rounded-2xl border overflow-hidden" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
+        <div key="calendar-view" className="rounded-2xl border overflow-hidden view-transition" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
           <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: "var(--card-border)" }}>
             <button onClick={() => setCalendarWeekOffset(p => p - 1)} className="h-7 w-7 flex items-center justify-center rounded-lg transition-all hover:scale-110" style={{ color: "var(--text-color)" }}><ChevronLeft size={16} /></button>
             <div className="text-xs font-bold" style={{ color: "var(--text-color)" }}>
@@ -424,8 +423,8 @@ export default function TasksPage() {
 
       {/* ---- CREATE MODAL ---- */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setIsModalOpen(false)}>
-          <div className="w-full max-w-lg rounded-2xl p-6 border space-y-5" style={{ background: "var(--card-bg-solid)", borderColor: "var(--card-border)" }} onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 t-modal-backdrop" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setIsModalOpen(false)}>
+          <div className="w-full max-w-lg rounded-2xl p-6 border space-y-5 t-modal-pop" style={{ background: "var(--card-bg-solid)", borderColor: "var(--card-border)" }} onClick={e => e.stopPropagation()}>
             <div>
               <h2 className="cause-font text-lg font-bold" style={{ color: "var(--text-color)" }}>Create New Task</h2>
               <p className="text-xs text-muted-foreground mt-1">Add a new task to your workspace.</p>

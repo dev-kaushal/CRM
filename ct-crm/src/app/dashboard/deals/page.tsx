@@ -185,7 +185,7 @@ export default function DealsPage() {
       </div>
 
       {/* Kanban Board Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 view-transition">
         {STAGES.map((st) => {
           const stageDeals = deals.filter(d => d.stage === st);
           const stageSum = stageDeals.reduce((sum, d) => sum + (isForecastView ? d.value * (d.probability / 100) : d.value), 0);
@@ -262,8 +262,9 @@ export default function DealsPage() {
 
       {/* New Deal Sliding Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-end">
-          <div className="w-full max-w-md h-full overflow-y-auto p-8 shadow-2xl flex flex-col justify-between" style={{ background: "var(--card-bg-solid)", borderLeft: "1px solid var(--card-border)" }}>
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm t-modal-backdrop" onClick={() => setIsModalOpen(false)} />
+          <div className="relative w-full max-w-md h-full overflow-y-auto p-8 shadow-2xl flex flex-col justify-between t-drawer-panel" style={{ background: "var(--card-bg-solid)", borderLeft: "1px solid var(--card-border)" }}>
             <div className="space-y-6">
               <div className="flex items-center justify-between pb-4 border-b" style={{ borderColor: "var(--card-border)" }}>
                 <h2 className="cause-font text-lg font-bold" style={{ color: "var(--text-color)" }}>Log New Deal Opportunity</h2>

@@ -332,7 +332,7 @@ export default function ContactsPage() {
           <button onClick={() => { resetForm(); setIsCreateOpen(true); }} className="mt-4 h-9 px-4 rounded-xl text-xs font-semibold flex items-center gap-1.5" style={{ background: "var(--graph-to)", color: "#0a0a0a" }}><Plus size={14} />New Contact</button>
         </div>
       ) : (
-        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "var(--card-border)" }}>
+        <div className="rounded-2xl border overflow-hidden view-transition" style={{ borderColor: "var(--card-border)" }}>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs min-w-[850px]" style={{ background: "var(--card-bg)" }}>
               <thead>
@@ -425,8 +425,8 @@ export default function ContactsPage() {
       {/* ── VIEW DETAILS DRAWER ── */}
       {viewContact && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setViewContact(null)} />
-          <div className="relative ml-auto h-full w-full max-w-[520px] flex flex-col overflow-hidden shadow-2xl" style={{ background: "var(--card-bg-solid)", borderLeft: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 t-modal-backdrop" onClick={() => setViewContact(null)} />
+          <div className="relative ml-auto h-full w-full max-w-[520px] flex flex-col overflow-hidden shadow-2xl t-drawer-panel" style={{ background: "var(--card-bg-solid)", borderLeft: "1px solid var(--card-border)" }}>
             <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom: "1px solid var(--card-border)" }}>
               <div className="flex items-center gap-2.5">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0" style={{ background: "linear-gradient(135deg,#a855f7,#00f2fe)", color: "#0a0a0a" }}>{(viewContact.first_name || "?")[0]}{(viewContact.last_name || "")[0]}</div>
@@ -502,8 +502,8 @@ export default function ContactsPage() {
       {/* ── CREATE / EDIT DRAWER ── */}
       {(isCreateOpen || editContact) && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/50" onClick={() => { setIsCreateOpen(false); setEditContact(null); }} />
-          <div className="relative ml-auto h-full w-full max-w-[520px] overflow-y-auto shadow-2xl" style={{ background: "var(--card-bg-solid)", borderLeft: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 t-modal-backdrop" onClick={() => { setIsCreateOpen(false); setEditContact(null); }} />
+          <div className="relative ml-auto h-full w-full max-w-[520px] overflow-y-auto shadow-2xl t-drawer-panel" style={{ background: "var(--card-bg-solid)", borderLeft: "1px solid var(--card-border)" }}>
             <form onSubmit={editContact ? handleEdit : handleCreate}>
               <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4" style={{ background: "var(--card-bg-solid)", borderBottom: "1px solid var(--card-border)" }}>
                 <h2 className="cause-font text-lg font-bold" style={{ color: "var(--text-color)" }}>{editContact ? "Edit Contact" : "New Contact"}</h2>
@@ -557,8 +557,8 @@ export default function ContactsPage() {
       {/* ── DELETE MODAL ── */}
       {deleteContact && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteContact(null)} />
-          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setDeleteContact(null)} />
+          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl t-modal-pop" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
             <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(239,68,68,.1)" }}><Trash2 size={22} style={{ color: "#ef4444" }} /></div>
             <h3 className="text-base font-bold text-center mb-1" style={{ color: "var(--text-color)" }}>Delete Contact?</h3>
             <p className="text-sm text-muted-foreground text-center mb-5"><strong style={{ color: "var(--text-color)" }}>{fullName(deleteContact)}</strong> will be permanently removed.</p>
@@ -573,8 +573,8 @@ export default function ContactsPage() {
       {/* ── ADD NOTE MODAL ── */}
       {noteForContact && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setNoteForContact(null)} />
-          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setNoteForContact(null)} />
+          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl t-modal-pop" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
             <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold" style={{ color: "var(--text-color)" }}>Add Note — {fullName(noteForContact)}</h3><button onClick={() => setNoteForContact(null)}><X size={15} /></button></div>
             <textarea autoFocus rows={4} value={newNote} onChange={e => setNewNote(e.target.value)} className="w-full border rounded-xl p-3 text-sm outline-none resize-none" style={{ borderColor: "var(--card-border)", background: "var(--accent)", color: "var(--text-color)" }} placeholder="Write note..." />
             <div className="flex gap-3 mt-4">
@@ -588,8 +588,8 @@ export default function ContactsPage() {
       {/* ── REMINDER MODAL ── */}
       {reminderContact && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setReminderContact(null)} />
-          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setReminderContact(null)} />
+          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl t-modal-pop" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
             <div className="flex items-center justify-between mb-5"><div><h3 className="text-sm font-bold" style={{ color: "var(--text-color)" }}>Set Reminder</h3><p className="text-xs text-muted-foreground">For: {fullName(reminderContact)}</p></div><button onClick={() => setReminderContact(null)}><X size={15} /></button></div>
             <div className="space-y-3">
               <CFF label="Title *"><input value={reminderForm.title} onChange={e => setReminderForm(f => ({ ...f, title: e.target.value }))} className="cct-fi" placeholder="Follow-up call" /></CFF>
@@ -610,8 +610,8 @@ export default function ContactsPage() {
       {/* ── COLUMN EDITOR ── */}
       {columnEditorOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setColumnEditorOpen(false)} />
-          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setColumnEditorOpen(false)} />
+          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl t-modal-pop" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
             <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold" style={{ color: "var(--text-color)" }}><SlidersHorizontal size={14} className="inline mr-1.5" />Customise Columns</h3><button onClick={() => setColumnEditorOpen(false)}><X size={14} /></button></div>
             <div className="space-y-1.5">
               {ALL_COLUMNS.map(col => (

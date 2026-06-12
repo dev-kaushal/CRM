@@ -75,7 +75,7 @@ export function WidgetWrapper({
 // --- Skeleton Loading ---
 function WidgetSkeleton() {
   return (
-    <div className="space-y-3 animate-pulse">
+    <div className="space-y-3 is-pulsing">
       <div className="h-8 w-24 rounded-lg" style={{ background: "var(--accent)" }} />
       <div className="h-4 w-48 rounded" style={{ background: "var(--accent)" }} />
       <div className="flex gap-2 mt-3">

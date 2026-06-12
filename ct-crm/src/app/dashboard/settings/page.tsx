@@ -8,6 +8,7 @@ import {
   Check, X, Lock, Key, Monitor, Smartphone, Clock, Mail, Calendar,
   MessageSquare, Zap, Type, Hash, CalendarDays, ListFilter
 } from "lucide-react";
+import { ViewSwitcher } from "@/components/dashboard/view-switcher";
 
 // ============================================
 // Types
@@ -166,26 +167,15 @@ export default function SettingsPage() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex items-center gap-1 p-1 rounded-2xl border overflow-x-auto" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className="flex items-center gap-1.5 h-9 px-4 rounded-xl text-xs font-semibold transition-all duration-200 whitespace-nowrap"
-            style={{
-              background: activeTab === tab.id ? "var(--accent)" : "transparent",
-              color: activeTab === tab.id ? "var(--text-color)" : "var(--muted-foreground)",
-            }}
-          >
-            <tab.icon size={14} />
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </div>
+      <ViewSwitcher
+        value={activeTab}
+        onChange={setActiveTab}
+        options={TABS.map(tab => ({ id: tab.id, label: tab.label, icon: <tab.icon size={14} /> }))}
+      />
 
       {/* Tab Content */}
       {activeTab === "organization" && (
-        <div className="rounded-2xl border p-6 space-y-6" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
+        <div key="organization" className="rounded-2xl border p-6 space-y-6 view-transition" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
           <div>
             <h3 className="text-sm font-semibold" style={{ color: "var(--text-color)" }}>Organization Profile</h3>
             <p className="text-[10px] text-muted-foreground mt-0.5">Manage your organization details and preferences.</p>
@@ -240,7 +230,7 @@ export default function SettingsPage() {
       )}
 
       {activeTab === "integrations" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div key="integrations" className="grid grid-cols-1 sm:grid-cols-2 gap-4 view-transition">
           {integrations.map(integration => (
             <div key={integration.id} className="rounded-2xl border p-5 transition-all duration-200 hover:shadow-md" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
               <div className="flex items-start gap-3.5">
@@ -276,7 +266,7 @@ export default function SettingsPage() {
       )}
 
       {activeTab === "custom-fields" && (
-        <div className="rounded-2xl border overflow-hidden" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
+        <div key="custom-fields" className="rounded-2xl border overflow-hidden view-transition" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
           <div className="p-5 border-b" style={{ borderColor: "var(--card-border)" }}>
             <h3 className="text-sm font-semibold" style={{ color: "var(--text-color)" }}>Custom Fields</h3>
             <p className="text-[10px] text-muted-foreground mt-0.5">View and manage custom data fields for CRM entities.</p>
@@ -319,7 +309,7 @@ export default function SettingsPage() {
       )}
 
       {activeTab === "notifications" && (
-        <div className="rounded-2xl border overflow-hidden" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
+        <div key="notifications" className="rounded-2xl border overflow-hidden view-transition" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
           <div className="p-5 border-b" style={{ borderColor: "var(--card-border)" }}>
             <h3 className="text-sm font-semibold" style={{ color: "var(--text-color)" }}>Notification Preferences</h3>
             <p className="text-[10px] text-muted-foreground mt-0.5">Control which notifications you receive via email and push.</p>
@@ -360,7 +350,7 @@ export default function SettingsPage() {
       )}
 
       {activeTab === "security" && (
-        <div className="space-y-4">
+        <div key="security" className="space-y-4 view-transition">
           {/* Password */}
           <div className="rounded-2xl border p-6 space-y-4" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
             <div className="flex items-center gap-2">

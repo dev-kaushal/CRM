@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candy Crush — 10 Levels</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Trebuchet MS', Arial, sans-serif;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #8e44ad);
+            background-size: 400% 400%;
+            animation: bgShift 18s ease infinite;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            overflow-x: hidden;
+        }
+
+        @keyframes bgShift {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        h1 {
+            color: #fff;
+            font-size: 34px;
+            letter-spacing: 1px;
+            text-shadow: 0 3px 10px rgba(0, 0, 0, .4);
+            margin-bottom: 10px;
+        }
+
+        /* ---------- Screens ---------- */
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* ---------- Level map ---------- */
+        #levelGrid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 14px;
+            background: rgba(255, 255, 255, .12);
+            backdrop-filter: blur(8px);
+            padding: 22px;
+            border-radius: 20px;
+            box-shadow: 0 10px 35px rgba(0, 0, 0, .3);
+        }
+
+        .lvlBtn {
+            width: 72px;
+            height: 72px;
+            border: none;
+            border-radius: 16px;
+            font-size: 24px;
+            font-weight: 800;
+            cursor: pointer;
+            color: #5b3a00;
+            background: linear-gradient(180deg, #ffe082, #ffb300);
+            box-shadow: 0 5px 0 #c78a00, 0 8px 14px rgba(0, 0, 0, .25);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: transform .12s;
+        }
+
+        .lvlBtn:hover:not(:disabled) {
+            transform: translateY(-3px) scale(1.05);
+        }
+
+        .lvlBtn:disabled {
+            background: linear-gradient(180deg, #9e9e9e, #616161);
+            box-shadow: 0 5px 0 #424242;
+            color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .lvlBtn .stars {
+            font-size: 11px;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+
+        /* ---------- Game HUD ---------- */
+        #gameScreen {
+            width: 100%;
+            max-width: 520px;
+        }
+
+        .hud {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            width: 100%;
+            color: #fff;
+            font-weight: 700;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .hud .pill {
+            background: rgba(0, 0, 0, .3);
+            backdrop-filter: blur(6px);
+            padding: 8px 16px;
+            border-radius: 999px;
+            font-size: 16px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .15);
+        }
+
+        #progressWrap {
+            width: 100%;
+            max-width: 480px;
+            height: 16px;
+            margin-bottom: 12px;
+            background: rgba(0, 0, 0, .35);
+            border-radius: 999px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, .4);
+        }
+
+        #progressBar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #00e676, #ffee58);
+            border-radius: 999px;
+            transition: width .4s ease;
+        }
+
+        /* ---------- Board ---------- */
+        #boardWrap {
+            position: relative;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 5px;
+            background: rgba(0, 0, 0, .3);
+            backdrop-filter: blur(8px);
+            padding: 10px;
+            border-radius: 18px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .1);
+            touch-action: none;
+        }
+
+        .cell {
+            width: 54px;
+            height: 54px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 34px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, .10);
+            cursor: grab;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: transform .15s, opacity .25s, background .15s, box-shadow .15s;
+        }
+
+        @media (max-width: 540px) {
+            .cell {
+                width: 40px;
+                height: 40px;
+                font-size: 25px;
+                border-radius: 9px;
+            }
+
+            h1 {
+                font-size: 26px;
+            }
+        }
+
+        .cell:hover {
+            background: rgba(255, 255, 255, .22);
+        }
+
+        .cell.selected {
+            background: rgba(255, 255, 255, .6);
+            transform: scale(1.14);
+            box-shadow: 0 0 16px rgba(255, 255, 255, .8);
+        }
+
+        .cell.pop {
+            transform: scale(0) rotate(120deg);
+            opacity: 0;
+        }
+
+        .cell.fall {
+            animation: fall .32s cubic-bezier(.2, .7, .3, 1.2);
+        }
+
+        @keyframes fall {
+            from {
+                transform: translateY(-56px);
+                opacity: .2;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .cell.shake {
+            animation: shake .32s;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-6px) rotate(-4deg);
+            }
+
+            75% {
+                transform: translateX(6px) rotate(4deg);
+            }
+        }
+
+        .cell.hint {
+            animation: hintPulse 1s infinite;
+        }
+
+        @keyframes hintPulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 rgba(255, 255, 255, 0);
+            }
+
+            50% {
+                box-shadow: 0 0 18px rgba(255, 255, 255, .9);
+                transform: scale(1.08);
+            }
+        }
+
+        /* ---------- Floating score & combo ---------- */
+        .floatScore {
+            position: absolute;
+            pointer-events: none;
+            z-index: 5;
+            font-weight: 900;
+            font-size: 20px;
+            color: #ffee58;
+            text-shadow: 0 2px 6px rgba(0, 0, 0, .6);
+            animation: floatUp .9s ease-out forwards;
+        }
+
+        @keyframes floatUp {
+            from {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+
+            to {
+                opacity: 0;
+                transform: translateY(-46px) scale(1.5);
+            }
+        }
+
+        #comboText {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            z-index: 6;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            font-size: 40px;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 0 18px #ff4081, 0 3px 8px rgba(0, 0, 0, .5);
+            opacity: 0;
+        }
+
+        #comboText.show {
+            animation: comboZoom .8s ease-out;
+        }
+
+        @keyframes comboZoom {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(.3);
+            }
+
+            30% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+
+            70% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(1.1);
+            }
+        }
+
+        /* ---------- Overlay ---------- */
+        #overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 5, 25, .7);
+            backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+        }
+
+        #overlay.show {
+            display: flex;
+        }
+
+        .panel {
+            background: linear-gradient(160deg, #3b2667, #6a3093);
+            border-radius: 24px;
+            padding: 34px 44px;
+            text-align: center;
+            color: #fff;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .2);
+            animation: panelIn .35s cubic-bezier(.2, .8, .3, 1.3);
+        }
+
+        @keyframes panelIn {
+            from {
+                transform: scale(.6);
+                opacity: 0;
+            }
+        }
+
+        .panel h2 {
+            font-size: 36px;
+            margin-bottom: 6px;
+        }
+
+        .panel .bigStars {
+            font-size: 38px;
+            margin: 8px 0 4px;
+            letter-spacing: 4px;
+        }
+
+        .panel p {
+            font-size: 19px;
+            margin-bottom: 20px;
+            opacity: .9;
+        }
+
+        .btnRow {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        button.action {
+            font-size: 17px;
+            font-weight: 800;
+            padding: 12px 26px;
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            background: linear-gradient(180deg, #ffe082, #ffb300);
+            color: #5b3a00;
+            box-shadow: 0 5px 0 #c78a00;
+            transition: transform .1s;
+        }
+
+        button.action.alt {
+            background: linear-gradient(180deg, #b39ddb, #7e57c2);
+            color: #fff;
+            box-shadow: 0 5px 0 #4d2c91;
+        }
+
+        button.action:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        .topRow {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .topRow button.action {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🍬 Candy Crush</h1>
+
+    <!-- Level select -->
+    <div id="menuScreen" class="screen active">
+        <div id="levelGrid"></div>
+    </div>
+
+    <!-- Game -->
+    <div id="gameScreen" class="screen">
+        <div class="topRow">
+            <button class="action alt" onclick="showMenu()">☰ Levels</button>
+            <button class="action" onclick="restartLevel()">↻ Restart</button>
+        </div>
+        <div class="hud">
+            <div class="pill">Level <span id="lvlNum">1</span></div>
+            <div class="pill">🎯 <span id="target">0</span></div>
+            <div class="pill">⭐ <span id="score">0</span></div>
+            <div class="pill">👆 <span id="moves">0</span></div>
+        </div>
+        <div id="progressWrap">
+            <div id="progressBar"></div>
+        </div>
+        <div id="boardWrap">
+            <div id="board"></div>
+            <div id="comboText"></div>
+        </div>
+    </div>
+
+    <!-- Win / lose overlay -->
+    <div id="overlay">
+        <div class="panel">
+            <h2 id="resultTitle">Level Complete!</h2>
+            <div class="bigStars" id="resultStars"></div>
+            <p id="resultText"></p>
+            <div class="btnRow">
+                <button class="action alt" onclick="showMenu()">Levels</button>
+                <button class="action" id="nextBtn" onclick="nextAction()">Next ▶</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ================= Config ================= */
+        const SIZE = 8;
+        const ALL_CANDIES = ['🍬', '🍭', '🍫', '🍩', '🧁', '🍪', '🍮'];
+        // 10 levels: rising targets, tighter moves, more candy types
+        const LEVELS = [
+            { target: 1000, moves: 30, candies: 5 },
+            { target: 1500, moves: 28, candies: 5 },
+            { target: 2000, moves: 26, candies: 5 },
+            { target: 2600, moves: 26, candies: 6 },
+            { target: 3200, moves: 24, candies: 6 },
+            { target: 4000, moves: 24, candies: 6 },
+            { target: 4800, moves: 22, candies: 6 },
+            { target: 5600, moves: 22, candies: 7 },
+            { target: 6500, moves: 20, candies: 7 },
+            { target: 8000, moves: 20, candies: 7 },
+        ];
+
+        /* ================= State ================= */
+        let grid = [], cells = [];
+        let level = 0, score = 0, moves = 0;
+        let candyCount = 5;
+        let selected = null, busy = false, won = false;
+        let dragStart = null;          // {r, c, x, y}
+        let hintTimer = null;
+
+        const $ = id => document.getElementById(id);
+        const boardEl = $('board');
+
+        /* ================= Progress (localStorage) ================= */
+        function loadProgress() {
+            try { return JSON.parse(localStorage.getItem('candyProgress')) || {}; }
+            catch { return {}; }
+        }
+        function saveProgress(p) { localStorage.setItem('candyProgress', JSON.stringify(p)); }
+
+        /* ================= Sound (WebAudio, no files) ================= */
+        let actx = null;
+        function beep(freq, dur = .09, type = 'sine', vol = .15) {
+            try {
+                actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+                const o = actx.createOscillator(), g = actx.createGain();
+                o.type = type; o.frequency.value = freq;
+                g.gain.setValueAtTime(vol, actx.currentTime);
+                g.gain.exponentialRampToValueAtTime(.001, actx.currentTime + dur);
+                o.connect(g); g.connect(actx.destination);
+                o.start(); o.stop(actx.currentTime + dur);
+            } catch { }
+        }
+        const sndPop = chain => beep(300 + chain * 120, .12, 'triangle');
+        const sndSwap = () => beep(220, .06, 'sine', .08);
+        const sndBad = () => beep(110, .15, 'sawtooth', .08);
+        const sndWin = () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, .2, 'triangle', .2), i * 130));
+        const sndLose = () => [392, 330, 262].forEach((f, i) => setTimeout(() => beep(f, .25, 'sine', .15), i * 180));
+
+        /* ================= Level menu ================= */
+        function showMenu() {
+            $('overlay').classList.remove('show');
+            $('gameScreen').classList.remove('active');
+            $('menuScreen').classList.add('active');
+            buildMenu();
+        }
+        function buildMenu() {
+            const prog = loadProgress();
+            const wrap = $('levelGrid');
+            wrap.innerHTML = '';
+            LEVELS.forEach((_, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'lvlBtn';
+                const unlocked = i === 0 || prog[i - 1] >= 1;
+                btn.disabled = !unlocked;
+                const stars = prog[i] || 0;
+                btn.innerHTML = (unlocked ? (i + 1) : '🔒') +
+                    `<span class="stars">${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}</span>`;
+                btn.onclick = () => startLevel(i);
+                wrap.appendChild(btn);
+            });
+        }
+
+        /* ================= Game setup ================= */
+        function startLevel(i) {
+            level = i;
+            const cfg = LEVELS[i];
+            score = 0; moves = cfg.moves; candyCount = cfg.candies;
+            selected = null; busy = false; won = false;
+            $('menuScreen').classList.remove('active');
+            $('overlay').classList.remove('show');
+            $('gameScreen').classList.add('active');
+            $('lvlNum').textContent = i + 1;
+            $('target').textContent = cfg.target;
+            buildGrid();
+            render();
+            updateHud();
+            scheduleHint();
+        }
+        function restartLevel() { startLevel(level); }
+
+        function rand() { return Math.floor(Math.random() * candyCount); }
+
+        function buildGrid() {
+            grid = [];
+            for (let r = 0; r < SIZE; r++) {
+                grid[r] = [];
+                for (let c = 0; c < SIZE; c++) {
+                    let v;
+                    do { v = rand(); }
+                    while ((c >= 2 && grid[r][c - 1] === v && grid[r][c - 2] === v) ||
+                        (r >= 2 && grid[r - 1][c] === v && grid[r - 2][c] === v));
+                    grid[r][c] = v;
+                }
+            }
+            if (!hasPossibleMove()) buildGrid(); // guarantee a playable start
+        }
+
+        function render() {
+            boardEl.innerHTML = '';
+            cells = [];
+            for (let r = 0; r < SIZE; r++) {
+                cells[r] = [];
+                for (let c = 0; c < SIZE; c++) {
+                    const d = document.createElement('div');
+                    d.className = 'cell';
+                    d.textContent = ALL_CANDIES[grid[r][c]];
+                    d.dataset.r = r; d.dataset.c = c;
+                    boardEl.appendChild(d);
+                    cells[r][c] = d;
+                }
+            }
+        }
+
+        function drawCell(r, c) {
+            cells[r][c].textContent = grid[r][c] >= 0 ? ALL_CANDIES[grid[r][c]] : '';
+        }
+
+        function updateHud() {
+            $('score').textContent = score;
+            $('moves').textContent = moves;
+            const pct = Math.min(100, score / LEVELS[level].target * 100);
+            $('progressBar').style.width = pct + '%';
+        }
+
+        /* ================= Input: click + drag ================= */
+        boardEl.addEventListener('pointerdown', e => {
+            const cell = e.target.closest('.cell');
+            if (!cell || busy || moves <= 0) return;
+            const r = +cell.dataset.r, c = +cell.dataset.c;
+            dragStart = { r, c, x: e.clientX, y: e.clientY };
+            cell.setPointerCapture && cell.releasePointerCapture?.(e.pointerId);
+        });
+
+        boardEl.addEventListener('pointermove', e => {
+            if (!dragStart || busy) return;
+            const dx = e.clientX - dragStart.x;
+            const dy = e.clientY - dragStart.y;
+            const TH = 22; // drag threshold (px)
+            if (Math.abs(dx) < TH && Math.abs(dy) < TH) return;
+
+            let r2 = dragStart.r, c2 = dragStart.c;
+            if (Math.abs(dx) > Math.abs(dy)) c2 += dx > 0 ? 1 : -1;
+            else r2 += dy > 0 ? 1 : -1;
+
+            const { r, c } = dragStart;
+            dragStart = null; // consume the drag
+            clearSelection();
+            if (r2 >= 0 && r2 < SIZE && c2 >= 0 && c2 < SIZE) trySwap(r, c, r2, c2);
+        });
+
+        boardEl.addEventListener('pointerup', e => {
+            if (!dragStart) return;
+            // It was a tap, not a drag → click-to-select behavior
+            const { r, c } = dragStart;
+            dragStart = null;
+            handleTap(r, c);
+        });
+        boardEl.addEventListener('pointercancel', () => dragStart = null);
+
+        function handleTap(r, c) {
+            if (busy || moves <= 0) return;
+            if (!selected) {
+                selected = { r, c };
+                cells[r][c].classList.add('selected');
+                return;
+            }
+            const { r: sr, c: sc } = selected;
+            clearSelection();
+            if (sr === r && sc === c) return;
+            if (Math.abs(sr - r) + Math.abs(sc - c) !== 1) {
+                selected = { r, c };
+                cells[r][c].classList.add('selected');
+                return;
+            }
+            trySwap(sr, sc, r, c);
+        }
+        function clearSelection() {
+            if (selected) cells[selected.r][selected.c].classList.remove('selected');
+            selected = null;
+        }
+
+        /* ================= Core mechanics ================= */
+        function swap(r1, c1, r2, c2) {
+            [grid[r1][c1], grid[r2][c2]] = [grid[r2][c2], grid[r1][c1]];
+        }
+
+        async function trySwap(r1, c1, r2, c2) {
+            busy = true;
+            clearHint();
+            sndSwap();
+            swap(r1, c1, r2, c2);
+            drawCell(r1, c1); drawCell(r2, c2);
+
+            if (findMatches().length === 0) {
+                sndBad();
+                cells[r1][c1].classList.add('shake');
+                cells[r2][c2].classList.add('shake');
+                await wait(320);
+                swap(r1, c1, r2, c2);
+                drawCell(r1, c1); drawCell(r2, c2);
+                cells[r1][c1].classList.remove('shake');
+                cells[r2][c2].classList.remove('shake');
+                busy = false;
+                scheduleHint();
+                return;
+            }
+
+            moves--;
+            updateHud();
+            await resolveBoard();
+
+            // Reshuffle if board is stuck
+            if (!hasPossibleMove()) {
+                showCombo('Shuffling…');
+                await wait(700);
+                buildGrid(); render();
+            }
+
+            busy = false;
+            checkEnd();
+            scheduleHint();
+        }
+
+        function findMatches() {
+            const m = new Set();
+            for (let r = 0; r < SIZE; r++) {
+                let run = 1;
+                for (let c = 1; c <= SIZE; c++) {
+                    if (c < SIZE && grid[r][c] >= 0 && grid[r][c] === grid[r][c - 1]) run++;
+                    else { if (run >= 3) for (let k = c - run; k < c; k++) m.add(r + ',' + k); run = 1; }
+                }
+            }
+            for (let c = 0; c < SIZE; c++) {
+                let run = 1;
+                for (let r = 1; r <= SIZE; r++) {
+                    if (r < SIZE && grid[r][c] >= 0 && grid[r][c] === grid[r - 1][c]) run++;
+                    else { if (run >= 3) for (let k = r - run; k < r; k++) m.add(k + ',' + c); run = 1; }
+                }
+            }
+            return [...m].map(s => s.split(',').map(Number));
+        }
+
+        async function resolveBoard() {
+            let chain = 1;
+            let matches = findMatches();
+            while (matches.length) {
+                sndPop(chain);
+                const gained = matches.length * 10 * chain;
+                score += gained;
+                updateHud();
+                spawnFloatScore(matches, gained, chain);
+                if (chain === 2) showCombo('Combo! ×2');
+                if (chain === 3) showCombo('Great! ×3');
+                if (chain >= 4) showCombo('AMAZING! ×' + chain);
+
+                for (const [r, c] of matches) cells[r][c].classList.add('pop');
+                await wait(290);
+                for (const [r, c] of matches) grid[r][c] = -1;
+
+                // Gravity + refill
+                for (let c = 0; c < SIZE; c++) {
+                    let w = SIZE - 1;
+                    for (let r = SIZE - 1; r >= 0; r--) {
+                        if (grid[r][c] >= 0) {
+                            grid[w][c] = grid[r][c];
+                            if (w !== r) grid[r][c] = -1;
+                            w--;
+                        }
+                    }
+                    for (let r = w; r >= 0; r--) grid[r][c] = rand();
+                }
+                for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+                    cells[r][c].classList.remove('pop');
+                    cells[r][c].classList.add('fall');
+                    drawCell(r, c);
+                }
+                await wait(320);
+                for (const row of cells) for (const el of row) el.classList.remove('fall');
+
+                chain++;
+                matches = findMatches();
+            }
+        }
+
+        /* ================= Hints & possible moves ================= */
+        function findFirstMove() {
+            for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) {
+                for (const [dr, dc] of [[0, 1], [1, 0]]) {
+                    const r2 = r + dr, c2 = c + dc;
+                    if (r2 >= SIZE || c2 >= SIZE) continue;
+                    swap(r, c, r2, c2);
+                    const ok = findMatches().length > 0;
+                    swap(r, c, r2, c2);
+                    if (ok) return [[r, c], [r2, c2]];
+                }
+            }
+            return null;
+        }
+        function hasPossibleMove() { return !!findFirstMove(); }
+
+        function scheduleHint() {
+            clearHint();
+            hintTimer = setTimeout(() => {
+                const mv = findFirstMove();
+                if (mv && !busy) mv.forEach(([r, c]) => cells[r][c].classList.add('hint'));
+            }, 5000);
+        }
+        function clearHint() {
+            clearTimeout(hintTimer);
+            document.querySelectorAll('.cell.hint').forEach(el => el.classList.remove('hint'));
+        }
+
+        /* ================= Effects ================= */
+        function spawnFloatScore(matches, gained, chain) {
+            const [r, c] = matches[Math.floor(matches.length / 2)];
+            const cellRect = cells[r][c].getBoundingClientRect();
+            const wrapRect = $('boardWrap').getBoundingClientRect();
+            const el = document.createElement('div');
+            el.className = 'floatScore';
+            el.textContent = '+' + gained;
+            el.style.left = (cellRect.left - wrapRect.left) + 'px';
+            el.style.top = (cellRect.top - wrapRect.top) + 'px';
+            if (chain >= 2) el.style.color = '#ff80ab';
+            $('boardWrap').appendChild(el);
+            setTimeout(() => el.remove(), 900);
+        }
+        function showCombo(text) {
+            const el = $('comboText');
+            el.textContent = text;
+            el.classList.remove('show');
+            void el.offsetWidth; // restart animation
+            el.classList.add('show');
+        }
+
+        /* ================= Win / lose ================= */
+        function starsEarned() {
+            const t = LEVELS[level].target;
+            if (score >= t * 2) return 3;
+            if (score >= t * 1.5) return 2;
+            if (score >= t) return 1;
+            return 0;
+        }
+        function checkEnd() {
+            const t = LEVELS[level].target;
+            if (score >= t) {
+                won = true;
+                const s = starsEarned();
+                const prog = loadProgress();
+                prog[level] = Math.max(prog[level] || 0, s);
+                saveProgress(prog);
+                sndWin();
+                $('resultTitle').textContent = '🎉 Level ' + (level + 1) + ' Complete!';
+                $('resultStars').textContent = '★'.repeat(s) + '☆'.repeat(3 - s);
+                $('resultText').textContent = 'Score: ' + score;
+                $('nextBtn').textContent = level < LEVELS.length - 1 ? 'Next ▶' : 'Finish 🏆';
+                $('overlay').classList.add('show');
+            } else if (moves <= 0) {
+                won = false;
+                sndLose();
+                $('resultTitle').textContent = '😞 Out of Moves';
+                $('resultStars').textContent = '';
+                $('resultText').textContent = `Score: ${score} / ${t}`;
+                $('nextBtn').textContent = 'Retry ↻';
+                $('overlay').classList.add('show');
+            }
+        }
+        function nextAction() {
+            if (!won) { restartLevel(); return; }
+            if (level < LEVELS.length - 1) startLevel(level + 1);
+            else showMenu();
+        }
+
+        const wait = ms => new Promise(r => setTimeout(r, ms));
+
+        buildMenu();
+    </script>
+</body>
+
+</html>

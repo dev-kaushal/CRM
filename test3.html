@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Mountain Torque 3D</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+  html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:'Segoe UI',Arial,sans-serif}
+  #cv{position:fixed;inset:0;width:100%;height:100%;display:block}
+  .screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;
+    background:rgba(10,16,28,.82);color:#fff;z-index:10;backdrop-filter:blur(4px);text-align:center;padding:16px;overflow-y:auto}
+  .screen.show{display:flex}
+  h1{font-size:min(9vw,52px);letter-spacing:2px;margin-bottom:4px;color:#ffb300;text-shadow:0 4px 0 #7a4f00}
+  h1 span{color:#fff}
+  h2{color:#ffb300;margin-bottom:14px}
+  .sub{opacity:.7;margin-bottom:22px}
+  .btn{display:block;width:min(78vw,300px);margin:7px auto;padding:13px;border:0;border-radius:14px;font-size:18px;font-weight:700;
+    background:linear-gradient(#ffc233,#ff9800);color:#3a2300;cursor:pointer;box-shadow:0 4px 0 #b36b00}
+  .btn:active{transform:translateY(3px);box-shadow:0 1px 0 #b36b00}
+  .btn.sec{background:linear-gradient(#4d6480,#33455c);color:#fff;box-shadow:0 4px 0 #1c2735}
+  .btn.green{background:linear-gradient(#7bd64a,#4caf50);color:#0c2b0d;box-shadow:0 4px 0 #2d6b30}
+  .btn:disabled{filter:grayscale(1);opacity:.55;cursor:default}
+  .coinTag{position:fixed;top:12px;right:14px;background:rgba(0,0,0,.5);padding:7px 14px;border-radius:20px;font-weight:700;color:#ffd34d;z-index:11}
+  .card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:14px;margin:8px;width:min(86vw,340px)}
+  .statRow{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:13px}
+  .statRow b{width:86px;text-align:left}
+  .bar{flex:1;height:9px;background:#222d3d;border-radius:5px;overflow:hidden}
+  .bar i{display:block;height:100%;background:#ffb300;border-radius:5px}
+  .upBtn{padding:5px 10px;border:0;border-radius:8px;background:#4caf50;color:#fff;font-weight:700;cursor:pointer;font-size:12px}
+  .upBtn:disabled{background:#444;color:#999}
+  .navRow{display:flex;gap:10px;align-items:center;justify-content:center}
+  .arrow{font-size:30px;background:none;border:0;color:#ffb300;cursor:pointer;padding:6px 14px}
+  .emoji{font-size:58px;line-height:1.2}
+  /* HUD */
+  #hud{position:fixed;inset:0;z-index:5;display:none;pointer-events:none}
+  #hud.show{display:block}
+  .hudTop{position:absolute;top:10px;left:10px;right:10px;display:flex;gap:10px;align-items:center;color:#fff;font-weight:700}
+  .pill{background:rgba(0,0,0,.45);padding:6px 13px;border-radius:18px;font-size:15px}
+  #fuelWrap{flex:1;max-width:240px;height:16px;background:rgba(0,0,0,.5);border-radius:9px;overflow:hidden;border:1px solid rgba(255,255,255,.25)}
+  #fuelBar{height:100%;width:100%;background:linear-gradient(90deg,#ff5722,#ffc107);transition:width .15s}
+  #pauseBtn{pointer-events:auto;background:rgba(0,0,0,.45);border:0;color:#fff;font-size:18px;border-radius:10px;padding:6px 12px;cursor:pointer}
+  .ctl{position:absolute;bottom:18px;width:96px;height:96px;border-radius:50%;border:3px solid rgba(255,255,255,.5);
+    background:rgba(0,0,0,.4);color:#fff;font-size:34px;pointer-events:auto;cursor:pointer;touch-action:none}
+  #gasBtn{right:20px}#brkBtn{left:20px}
+  #boostBtn{right:135px;bottom:26px;width:70px;height:70px;font-size:24px}
+  .ctl:active{background:rgba(255,179,0,.55)}
+  #toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#ffb300;color:#3a2300;padding:10px 20px;
+    border-radius:12px;font-weight:700;z-index:50;display:none}
+  .small{font-size:12px;opacity:.65;margin-top:12px}
+  .setRow{display:flex;justify-content:space-between;align-items:center;width:min(80vw,300px);margin:9px auto;font-size:16px}
+  select{padding:6px;border-radius:8px;border:0;background:#33455c;color:#fff}
+  .big{font-size:34px;font-weight:800;color:#ffd34d}
+  .missionCard{display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;font-size:14px}
+  .done{color:#7bd64a;font-weight:700}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="toast"></div>
+
+<!-- ============ HUD ============ -->
+<div id="hud">
+  <div class="hudTop">
+    <button id="pauseBtn">II</button>
+    <span class="pill" id="hudDist">0 m</span>
+    <span class="pill" style="color:#ffd34d" id="hudCoins">🪙 0</span>
+    <span class="pill" id="hudSpeed">0 km/h</span>
+    <div id="fuelWrap"><div id="fuelBar"></div></div>
+  </div>
+  <button class="ctl" id="brkBtn">◀</button>
+  <button class="ctl" id="boostBtn">🔥</button>
+  <button class="ctl" id="gasBtn">▶</button>
+</div>
+
+<!-- ============ MENU ============ -->
+<div class="screen show" id="scr-menu">
+  <div class="coinTag">🪙 <span id="menuCoins">0</span></div>
+  <h1>MOUNTAIN TORQUE <span>3D</span></h1>
+  <div class="sub">Physics hill racing · drive far, don't flip!</div>
+  <button class="btn green" onclick="UI.play()">▶ PLAY</button>
+  <button class="btn" onclick="UI.open('garage')">🚙 GARAGE</button>
+  <button class="btn" onclick="UI.open('maps')">🗺 MAPS</button>
+  <button class="btn sec" onclick="UI.open('missions')">🎯 MISSIONS</button>
+  <button class="btn sec" onclick="UI.open('settings')">⚙ SETTINGS</button>
+  <div class="small">Keys: → / D gas · ← / A brake · Space boost · Esc pause</div>
+</div>
+
+<!-- ============ GARAGE ============ -->
+<div class="screen" id="scr-garage">
+  <div class="coinTag">🪙 <span id="garCoins">0</span></div>
+  <h2>GARAGE</h2>
+  <div id="garageBody"></div>
+  <button class="btn sec" onclick="UI.open('menu')">← Back</button>
+</div>
+
+<!-- ============ MAPS ============ -->
+<div class="screen" id="scr-maps">
+  <div class="coinTag">🪙 <span id="mapCoins">0</span></div>
+  <h2>MAPS</h2>
+  <div id="mapsBody"></div>
+  <button class="btn sec" onclick="UI.open('menu')">← Back</button>
+</div>
+
+<!-- ============ MISSIONS ============ -->
+<div class="screen" id="scr-missions">
+  <h2>MISSIONS</h2>
+  <div id="missionsBody"></div>
+  <button class="btn sec" onclick="UI.open('menu')">← Back</button>
+</div>
+
+<!-- ============ SETTINGS ============ -->
+<div class="screen" id="scr-settings">
+  <h2>SETTINGS</h2>
+  <div class="setRow"><span>Sound FX</span><input type="checkbox" id="setSound"></div>
+  <div class="setRow"><span>Music</span><input type="checkbox" id="setMusic"></div>
+  <div class="setRow"><span>Graphics</span>
+    <select id="setQuality"><option value="0">Low</option><option value="1">Medium</option><option value="2">High</option></select></div>
+  <div class="setRow"><span>Controls</span>
+    <select id="setControl"><option value="buttons">Buttons</option><option value="tilt">Tilt (mobile)</option></select></div>
+  <button class="btn sec" onclick="UI.resetProgress()" style="background:#a33">🗑 Reset Progress</button>
+  <button class="btn sec" onclick="UI.open('menu')">← Back</button>
+</div>
+
+<!-- ============ PAUSE ============ -->
+<div class="screen" id="scr-pause">
+  <h2>PAUSED</h2>
+  <button class="btn green" onclick="UI.resume()">▶ Resume</button>
+  <button class="btn" onclick="UI.restart()">↺ Restart</button>
+  <button class="btn sec" onclick="UI.quit()">🏠 Main Menu</button>
+</div>
+
+<!-- ============ GAME OVER ============ -->
+<div class="screen" id="scr-over">
+  <h2 id="overReason">RUN OVER</h2>
+  <div class="big" id="overDist">0 m</div>
+  <div style="margin:6px 0 2px">🪙 Coins: <b id="overCoins">0</b></div>
+  <div style="opacity:.75;margin-bottom:14px">Best on this map: <b id="overBest">0 m</b> <span id="newRec" style="color:#7bd64a"></span></div>
+  <button class="btn green" id="reviveBtn" onclick="UI.revive()">📺 Revive (free ad)</button>
+  <button class="btn" id="dblBtn" onclick="UI.doubleCoins()">📺 Double Coins (free ad)</button>
+  <button class="btn" onclick="UI.restart()">↺ Retry</button>
+  <button class="btn sec" onclick="UI.open('garage')">🔧 Upgrade</button>
+  <button class="btn sec" onclick="UI.quit()">🏠 Main Menu</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =====================================================================
+   MOUNTAIN TORQUE 3D — single-file prototype
+   Modules: Data · Save · Audio · World/Terrain · Vehicle Physics ·
+            Pickups · Particles · Input · Game Flow · UI
+===================================================================== */
+
+/* ---------------- DATA ---------------- */
+const VEHICLES=[
+ {id:'jeep',  name:'Ridge Jeep',  icon:'🚙', cost:0,    color:0xd35400, power:30, grip:1.0, fuelCap:100, susp:1.0, airSpin:3.6, wheelR:0.42, wb:1.05, vmax:19, fuelUse:1.0},
+ {id:'bike',  name:'Trail Bike',  icon:'🏍', cost:1500, color:0x2980b9, power:34, grip:0.9, fuelCap:80,  susp:0.85,airSpin:5.0, wheelR:0.38, wb:0.92, vmax:23, fuelUse:0.85},
+ {id:'monster',name:'Crusher MT', icon:'🛻', cost:4000, color:0x27ae60, power:44, grip:1.3, fuelCap:115, susp:1.35,airSpin:2.9, wheelR:0.62, wb:1.3,  vmax:18, fuelUse:1.3},
+ {id:'rover', name:'Luna Rover',  icon:'🛸', cost:8000, color:0xbdc3c7, power:37, grip:1.45,fuelCap:135, susp:1.15,airSpin:4.0, wheelR:0.5,  wb:1.2,  vmax:20, fuelUse:0.9},
+];
+const MAPS=[
+ {id:'hills',  name:'Green Hills',   icon:'🌄', cost:0,    sky:0x87ceeb, ground:0x4e9b40, dirt:0x6b4a2b, rough:1.0,  grip:1.0, gravity:1.0, prop:'tree'},
+ {id:'desert', name:'Desert Dunes',  icon:'🏜', cost:1000, sky:0xf7c873, ground:0xd9a44a, dirt:0x9c6b2f, rough:0.85, grip:0.9, gravity:1.0, prop:'cactus'},
+ {id:'snow',   name:'Snow Mountains',icon:'🏔', cost:2500, sky:0xbfe3ff, ground:0xeef4fa, dirt:0x9db4c4, rough:1.15, grip:0.62,gravity:1.0, prop:'pine'},
+ {id:'moon',   name:'Moon Surface',  icon:'🌙', cost:5000, sky:0x0a0a18, ground:0x8a8a96, dirt:0x55555f, rough:1.1,  grip:0.75,gravity:0.42,prop:'rock'},
+ {id:'volcano',name:'Volcano Road',  icon:'🌋', cost:9000, sky:0x3a1410, ground:0x5a4038, dirt:0x2e1d18, rough:1.4,  grip:1.0, gravity:1.0, prop:'rock'},
+];
+const UPGRADES=[
+ {id:'engine',name:'Engine'},{id:'susp',name:'Suspension'},{id:'tires',name:'Tires'},{id:'fuel',name:'Fuel Tank'}];
+const MAX_UPG=5;
+const MISSIONS=[
+ {id:'d300', desc:'Travel 300 m in one run',     type:'dist', goal:300, reward:200},
+ {id:'c50',  desc:'Collect 50 coins in one run', type:'coins',goal:50,  reward:250},
+ {id:'f5',   desc:'Grab 5 fuel cans in one run', type:'fuel', goal:5,   reward:300},
+ {id:'d1000',desc:'Travel 1000 m in one run',    type:'dist', goal:1000,reward:800},
+];
+
+/* ---------------- SAVE SYSTEM ---------------- */
+let S;
+function defaultSave(){return{coins:300,veh:{jeep:{owned:true,upg:{engine:0,susp:0,tires:0,fuel:0}}},
+  maps:{hills:{owned:true,best:0}},selV:'jeep',selM:'hills',missionsDone:[],lastDaily:'',
+  settings:{sound:true,music:true,quality:1,control:'buttons'}}}
+function loadSave(){try{S=JSON.parse(localStorage.getItem('mt3d_save'))}catch(e){S=null}
+  const d=defaultSave(); S=Object.assign(d,S||{}); S.settings=Object.assign(d.settings,S.settings||{});}
+function saveS(){localStorage.setItem('mt3d_save',JSON.stringify(S))}
+function vehData(id){if(!S.veh[id])S.veh[id]={owned:false,upg:{engine:0,susp:0,tires:0,fuel:0}};return S.veh[id]}
+function mapData(id){if(!S.maps[id])S.maps[id]={owned:false,best:0};return S.maps[id]}
+function upgCost(lvl,vi){return Math.round(120*(lvl+1)*(1+vi*0.5))}
+loadSave();
+
+/* ---------------- AUDIO (WebAudio, no assets) ---------------- */
+let AC=null,engOsc=null,engGain=null,musicNext=0,musicStep=0;
+const SCALE=[262,294,330,392,440,523,587];
+function audioInit(){
+  if(AC)return;
+  AC=new (window.AudioContext||window.webkitAudioContext)();
+  engOsc=AC.createOscillator();engOsc.type='sawtooth';
+  const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=500;
+  engGain=AC.createGain();engGain.gain.value=0;
+  engOsc.connect(f);f.connect(engGain);engGain.connect(AC.destination);engOsc.start();
+}
+function beep(freq,dur,type,vol){if(!AC||!S.settings.sound)return;
+  const o=AC.createOscillator(),g=AC.createGain();o.type=type||'square';o.frequency.value=freq;
+  g.gain.setValueAtTime(vol||0.12,AC.currentTime);g.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+dur);
+  o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+dur);}
+function sfx(t){if(!AC)return;
+  if(t==='coin'){beep(880,.09,'square',.09);beep(1320,.12,'square',.07)}
+  else if(t==='fuel'){beep(330,.15,'triangle',.15);beep(440,.2,'triangle',.12)}
+  else if(t==='click')beep(600,.06,'square',.08);
+  else if(t==='upgrade'){beep(523,.1,'square',.1);beep(659,.1,'square',.1);beep(784,.2,'square',.1)}
+  else if(t==='crash'){ if(!S.settings.sound)return;
+    const b=AC.createBuffer(1,AC.sampleRate*0.4,AC.sampleRate),d=b.getChannelData(0);
+    for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length);
+    const src=AC.createBufferSource(),g=AC.createGain();g.gain.value=.3;src.buffer=b;src.connect(g);g.connect(AC.destination);src.start();}}
+function tickMusic(){ // tiny generative background music
+  if(!AC||!S.settings.music||state!=='playing')return;
+  while(musicNext<AC.currentTime+0.3){
+    const n=SCALE[(musicStep*3+((musicStep>>2)%3))%SCALE.length];
+    const o=AC.createOscillator(),g=AC.createGain();o.type='triangle';o.frequency.value=n/2;
+    g.gain.setValueAtTime(0.035,musicNext);g.gain.exponentialRampToValueAtTime(0.001,musicNext+0.42);
+    o.connect(g);g.connect(AC.destination);o.start(musicNext);o.stop(musicNext+0.45);
+    musicNext+=0.45;musicStep++;}
+}
+
+/* ---------------- THREE SETUP ---------------- */
+const canvas=document.getElementById('cv');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,0.1,600);
+const hemi=new THREE.HemisphereLight(0xffffff,0x445566,0.9);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffffff,0.8);sun.position.set(-30,50,40);scene.add(sun);
+function applyQuality(){const q=+S.settings.quality;renderer.setPixelRatio(q===0?0.6:q===1?Math.min(devicePixelRatio,1.5):devicePixelRatio);
+  renderer.setSize(innerWidth,innerHeight)}
+applyQuality();
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+
+/* ---------------- TERRAIN ---------------- */
+const CHUNK=60,SEG=60,Z0=-9,Z1=2.6;
+let curMap=MAPS[0],matTop,matSkirt,chunks=new Map();
+function hAt(x){ // deterministic height function per map
+  if(x<8)return 0;
+  const d=x-8,r=curMap.rough;
+  const amp=Math.min(1,d/55)*(1+Math.min(1.7,x/850));
+  return (Math.sin(x*0.043)*2.6+Math.sin(x*0.019+4.2)*4.2+Math.sin(x*0.011+1.3)*3.1
+        +Math.sin(x*0.087+2.0)*1.1+Math.sin(x*0.29)*0.22)*amp*r;}
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function makeProp(rnd){
+  const g=new THREE.Group(),t=curMap.prop;
+  if(t==='tree'||t==='pine'){
+    const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.12,.18,1,6),new THREE.MeshLambertMaterial({color:0x6b4226}));
+    const top=new THREE.Mesh(new THREE.ConeGeometry(.8,1.8,7),
+      new THREE.MeshLambertMaterial({color:t==='pine'?0x2e6b4f:0x2f8f3a}));
+    trunk.position.y=.5;top.position.y=1.9;g.add(trunk,top);
+    if(t==='pine'){const snow=new THREE.Mesh(new THREE.ConeGeometry(.45,.7,7),new THREE.MeshLambertMaterial({color:0xffffff}));snow.position.y=2.6;g.add(snow)}
+  }else if(t==='cactus'){
+    const m=new THREE.MeshLambertMaterial({color:0x3d8b40});
+    const a=new THREE.Mesh(new THREE.CylinderGeometry(.18,.2,1.8,6),m);a.position.y=.9;
+    const b=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,.7,6),m);b.position.set(.32,1.1,0);b.rotation.z=-.5;g.add(a,b);
+  }else{ // rock
+    const r=new THREE.Mesh(new THREE.DodecahedronGeometry(.5+rnd()*.6),
+      new THREE.MeshLambertMaterial({color:curMap.id==='volcano'?0x442e26:0x6e6e78}));
+    r.position.y=.3;r.rotation.set(rnd()*3,rnd()*3,rnd()*3);g.add(r);}
+  const s=.7+rnd()*1.1;g.scale.set(s,s,s);return g;}
+function buildChunk(i){
+  const grp=new THREE.Group(),x0=i*CHUNK,dx=CHUNK/SEG;
+  const pos=[],idx=[],sp=[],si=[];
+  for(let s=0;s<=SEG;s++){const x=x0+s*dx,y=hAt(x);
+    pos.push(x,y,Z0, x,y,Z1); sp.push(x,y,Z1, x,y-30,Z1);}
+  for(let s=0;s<SEG;s++){const a=s*2;idx.push(a,a+1,a+2,a+1,a+3,a+2);si.push(a,a+1,a+2,a+1,a+3,a+2)}
+  const gt=new THREE.BufferGeometry();gt.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  gt.setIndex(idx);gt.computeVertexNormals();
+  const gs=new THREE.BufferGeometry();gs.setAttribute('position',new THREE.Float32BufferAttribute(sp,3));
+  gs.setIndex(si);gs.computeVertexNormals();
+  grp.add(new THREE.Mesh(gt,matTop),new THREE.Mesh(gs,matSkirt));
+  const rnd=rng(i*9173+curMap.id.length*777);     // background props (seeded)
+  const n=+S.settings.quality===0?2:5;
+  for(let k=0;k<n;k++){const px=x0+rnd()*CHUNK,pz=Z0+1+rnd()*4;
+    const p=makeProp(rnd);p.position.set(px,hAt(px),pz);grp.add(p);}
+  grp.userData.geos=[gt,gs];scene.add(grp);return grp;}
+function ensureChunks(cx){
+  const i0=Math.floor((cx-70)/CHUNK),i1=Math.floor((cx+170)/CHUNK);
+  for(const[k,g]of chunks)if(k<i0||k>i1){scene.remove(g);g.userData.geos.forEach(x=>x.dispose());chunks.delete(k)}
+  for(let i=Math.max(0,i0);i<=i1;i++)if(!chunks.has(i))chunks.set(i,buildChunk(i));}
+function clearChunks(){for(const[,g]of chunks){scene.remove(g);g.userData.geos.forEach(x=>x.dispose())}chunks.clear()}
+function applyMapTheme(){
+  scene.background=new THREE.Color(curMap.sky);
+  scene.fog=new THREE.Fog(curMap.sky,45,170);
+  hemi.intensity=curMap.id==='moon'?0.5:0.9;
+  if(matTop)matTop.dispose(); if(matSkirt)matSkirt.dispose();
+  matTop=new THREE.MeshLambertMaterial({color:curMap.ground,side:THREE.DoubleSide});
+  matSkirt=new THREE.MeshLambertMaterial({color:curMap.dirt,side:THREE.DoubleSide});}
+
+/* ---------------- VEHICLE (physics + mesh) ---------------- */
+const I=1.45,REST=0.58;
+let car=null;
+function effStats(v){const u=vehData(v.id).upg;return{
+  power:v.power*(1+0.15*u.engine), grip:v.grip*(1+0.10*u.tires),
+  suspK:70*v.susp*(1+0.12*u.susp), fuelCap:v.fuelCap*(1+0.15*u.fuel),
+  vmax:v.vmax*(1+0.06*u.engine)}}
+function buildCar(v){
+  const g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.BoxGeometry(2.2,0.55,1.1),new THREE.MeshLambertMaterial({color:v.color}));
+  const cabin=new THREE.Mesh(new THREE.BoxGeometry(1.0,0.55,0.95),new THREE.MeshLambertMaterial({color:0x22303f}));
+  cabin.position.set(-0.25,0.5,0);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.21,10,10),new THREE.MeshLambertMaterial({color:0xf1c27d}));
+  head.position.set(-0.25,1.0,0);
+  const helmet=new THREE.Mesh(new THREE.SphereGeometry(0.24,10,10,0,Math.PI*2,0,Math.PI/2),
+    new THREE.MeshLambertMaterial({color:0xffffff}));helmet.position.copy(head.position).y+=0.02;
+  g.add(body,cabin,head,helmet);
+  const wheels=[];
+  for(let i=0;i<2;i++){const wg=new THREE.Group();
+    for(const z of[-0.55,0.55]){
+      const tire=new THREE.Mesh(new THREE.CylinderGeometry(v.wheelR,v.wheelR,0.3,16),new THREE.MeshLambertMaterial({color:0x1c1c1c}));
+      tire.rotation.x=Math.PI/2;tire.position.z=z;
+      const hub=new THREE.Mesh(new THREE.CylinderGeometry(v.wheelR*0.5,v.wheelR*0.5,0.32,8),new THREE.MeshLambertMaterial({color:0xcfcfcf}));
+      hub.rotation.x=Math.PI/2;hub.position.z=z;wg.add(tire,hub);}
+    scene.add(wg);wheels.push(wg);}
+  scene.add(g);
+  return{mesh:g,wheelM:wheels,v,st:effStats(v),
+    x:4,y:hAt(4)+1.2,vx:0,vy:0,a:0,av:0,
+    wheels:[{lx:-v.wb,ly:-0.12,rot:0,cx:0,cy:0},{lx:v.wb,ly:-0.12,rot:0,cx:0,cy:0}]};}
+function destroyCar(){if(!car)return;scene.remove(car.mesh);car.wheelM.forEach(w=>scene.remove(w));car=null}
+
+function physStep(dt){
+  const c=car,v=c.v,st=c.st,g=24*curMap.gravity,grip=st.grip*curMap.grip;
+  let ax=0,ay=-g,aa=0,grounded=0;
+  const cos=Math.cos(c.a),sin=Math.sin(c.a);
+  for(const w of c.wheels){
+    const rx=w.lx*cos-w.ly*sin, ry=w.lx*sin+w.ly*cos;
+    const wx=c.x+rx, wyM=c.y+ry, gy=hAt(wx);
+    let s=wyM-(gy+v.wheelR);
+    const sC=Math.min(REST,Math.max(v.wheelR*0.25,s));
+    w.cx=wx;w.cy=wyM-sC;
+    if(s<REST){ // wheel touching: suspension spring + damper
+      grounded++;
+      const comp=REST-s, vpy=c.vy+c.av*rx;
+      let F=st.suspK*comp-9*vpy; F=Math.max(0,Math.min(F,160));
+      ay+=F; aa+=rx*F/I;
+      // drive force along terrain tangent at contact
+      const sl=(hAt(wx+0.4)-hAt(wx-0.4))/0.8, tl=Math.hypot(1,sl), tx=1/tl, ty=sl/tl;
+      let drive=0; const fwd=c.vx*tx+c.vy*ty;
+      if(input.gas&&run.fuel>0&&fwd<st.vmax)drive=st.power*grip;
+      if(input.brake)drive=fwd>1?-st.power*1.3*grip:(fwd>-8?-st.power*0.55*grip:0);
+      drive*=0.5;
+      const Fx=drive*tx,Fy=drive*ty,rcy=gy-c.y;
+      ax+=Fx;ay+=Fy;aa+=(rx*Fy-rcy*Fx)/I;
+      ax-=c.vx*0.12;                              // rolling friction
+      w.rot-=fwd/v.wheelR*dt;
+      if((input.gas||Math.abs(fwd)>8)&&Math.random()<0.35)spawnDust(wx,gy+0.1);
+    }else w.rot-=c.vx/v.wheelR*dt*0.5;
+  }
+  if(grounded===0)aa+=((input.gas?1:0)-(input.brake?1:0))*v.airSpin;  // air rotation control
+  if(input.boost&&run.fuel>0){ax+=cos*16;ay+=Math.max(0,sin)*5;run.fuel-=dt*6;
+    if(Math.random()<0.6)spawnDust(c.x-cos*1.3,c.y-sin*1.3,0xff7711);}
+  ax-=c.vx*(st.power/st.vmax)*0.04*(grounded?1:0.4);  // drag → top speed
+  ay-=c.vy*0.02;
+  c.vx+=ax*dt;c.vy+=ay*dt;c.av+=aa*dt;
+  c.av=Math.max(-7,Math.min(7,c.av));c.av*=1-(grounded?1.4:0.3)*dt;
+  c.x+=c.vx*dt;c.y+=c.vy*dt;c.a+=c.av*dt;
+  // chassis bottoming-out safeguard
+  const gC=hAt(c.x); if(c.y<gC+0.32){c.y=gC+0.32;if(c.vy<0)c.vy=0;c.vx*=0.97}
+  // head-hits-ground = crash (flip fail)
+  const hx=c.x+(-0.25*cos-1.05*sin), hy=c.y+(-0.25*sin+1.05*cos);
+  if(hy<hAt(hx)+0.12&&state==='playing')startCrash();
+}
+function syncCarVisual(){
+  const c=car;c.mesh.position.set(c.x,c.y,0);c.mesh.rotation.z=c.a;
+  for(let i=0;i<2;i++){const w=c.wheels[i],m=c.wheelM[i];
+    m.position.set(w.cx,w.cy,0);m.rotation.z=w.rot;}}
+
+/* ---------------- PICKUPS (pooled) ---------------- */
+const coinGeo=new THREE.CylinderGeometry(0.42,0.42,0.12,14);
+const coinMat=new THREE.MeshLambertMaterial({color:0xffd54f,emissive:0x8a6d00});
+const fuelMat=new THREE.MeshLambertMaterial({color:0xe53935});
+let pools={coin:[],fuel:[]},actives=[],spawnX=25;
+function getPickup(t){
+  let p=pools[t].pop();
+  if(!p){const grp=new THREE.Group();
+    if(t==='coin'){const m=new THREE.Mesh(coinGeo,coinMat);m.rotation.x=Math.PI/2;grp.add(m)}
+    else{const b=new THREE.Mesh(new THREE.BoxGeometry(.55,.7,.4),fuelMat);
+      const cap=new THREE.Mesh(new THREE.BoxGeometry(.18,.18,.18),new THREE.MeshLambertMaterial({color:0xffffff}));
+      cap.position.set(.15,.42,0);grp.add(b,cap)}
+    p={g:grp,t};scene.add(grp)}
+  p.g.visible=true;return p}
+function releasePickup(p){p.g.visible=false;pools[p.t].push(p)}
+function spawnAhead(cx){
+  while(spawnX<cx+160){
+    if(Math.random()<0.2){const p=getPickup('fuel');p.g.position.set(spawnX,hAt(spawnX)+0.9,0);actives.push(p);spawnX+=14+Math.random()*14;}
+    else{const n=4+Math.floor(Math.random()*5),arc=Math.random()<0.3;
+      for(let k=0;k<n;k++){const x=spawnX+k*1.6,p=getPickup('coin');
+        p.g.position.set(x,hAt(x)+1.0+(arc?Math.sin(k/(n-1)*Math.PI)*2.2:0),0);actives.push(p);}
+      spawnX+=n*1.6+8+Math.random()*16;}}
+}
+function updatePickups(dt){
+  for(let i=actives.length-1;i>=0;i--){const p=actives[i];
+    p.g.rotation.y+=dt*3;
+    const dx=p.g.position.x-car.x,dy=p.g.position.y-car.y;
+    if(Math.abs(dx)<1.5&&Math.abs(dy)<1.7){            // collect
+      if(p.t==='coin'){run.coins++;sfx('coin')}
+      else{run.fuel=Math.min(car.st.fuelCap,run.fuel+car.st.fuelCap*0.4);run.fuelCans++;sfx('fuel')}
+      releasePickup(p);actives.splice(i,1);}
+    else if(p.g.position.x<car.x-60){releasePickup(p);actives.splice(i,1)}}}
+function clearPickups(){actives.forEach(releasePickup);actives=[];spawnX=25}
+
+/* ---------------- PARTICLES (pooled dust/sparks) ---------------- */
+const parts=[];const partGeo=new THREE.BoxGeometry(.16,.16,.16);
+for(let i=0;i<70;i++){const m=new THREE.Mesh(partGeo,new THREE.MeshBasicMaterial({transparent:true}));
+  m.visible=false;scene.add(m);parts.push({m,life:0,vx:0,vy:0})}
+function spawnDust(x,y,col){const p=parts.find(p=>p.life<=0);if(!p)return;
+  p.m.material.color.set(col||curMap.dirt);p.m.material.opacity=0.85;
+  p.m.position.set(x,y,0.5);p.m.visible=true;p.life=0.5+Math.random()*0.3;
+  p.vx=(Math.random()-0.7)*3;p.vy=1+Math.random()*2}
+function updateParts(dt){for(const p of parts)if(p.life>0){p.life-=dt;
+  p.m.position.x+=p.vx*dt;p.m.position.y+=p.vy*dt;p.vy-=4*dt;
+  p.m.material.opacity=Math.max(0,p.life*1.6);p.m.scale.setScalar(1+(0.8-p.life));
+  if(p.life<=0)p.m.visible=false}}
+
+/* ---------------- INPUT ---------------- */
+const input={gas:false,brake:false,boost:false};
+function bindBtn(id,prop){const el=document.getElementById(id);
+  const on=e=>{e.preventDefault();audioInit();input[prop]=true};
+  const off=e=>{e.preventDefault();input[prop]=false};
+  el.addEventListener('pointerdown',on);el.addEventListener('pointerup',off);
+  el.addEventListener('pointerleave',off);el.addEventListener('pointercancel',off);}
+bindBtn('gasBtn','gas');bindBtn('brkBtn','brake');bindBtn('boostBtn','boost');
+addEventListener('keydown',e=>{audioInit();
+  if(e.code==='ArrowRight'||e.code==='KeyD')input.gas=true;
+  if(e.code==='ArrowLeft'||e.code==='KeyA')input.brake=true;
+  if(e.code==='Space'){input.boost=true;e.preventDefault()}
+  if((e.code==='Escape'||e.code==='KeyP')&&state==='playing')UI.pause();});
+addEventListener('keyup',e=>{
+  if(e.code==='ArrowRight'||e.code==='KeyD')input.gas=false;
+  if(e.code==='ArrowLeft'||e.code==='KeyA')input.brake=false;
+  if(e.code==='Space')input.boost=false;});
+addEventListener('deviceorientation',e=>{ // optional tilt controls
+  if(S.settings.control!=='tilt'||state!=='playing')return;
+  const t=e.gamma||0;input.gas=t>8;input.brake=t<-8;});
+
+/* ---------------- GAME FLOW ---------------- */
+let state='menu',run=null,crashT=0,shake=0;
+function startRun(){
+  curMap=MAPS.find(m=>m.id===S.selM)||MAPS[0];
+  applyMapTheme();clearChunks();clearPickups();destroyCar();
+  car=buildCar(VEHICLES.find(v=>v.id===S.selV)||VEHICLES[0]);
+  run={coins:0,fuel:car.st.fuelCap,maxX:car.x,fuelCans:0,lastProg:performance.now()/1000,revived:false,doubled:false,startX:car.x};
+  state='playing';shake=0;
+  if(AC)musicNext=AC.currentTime;
+  UI.show(null);document.getElementById('hud').classList.add('show');}
+function startCrash(){state='crash';crashT=0;shake=1;sfx('crash');if(engGain)engGain.gain.value=0}
+function endRun(reason){
+  state='over';document.getElementById('hud').classList.remove('show');
+  if(engGain)engGain.gain.value=0;
+  const dist=Math.floor(run.maxX-run.startX),md=mapData(curMap.id);
+  const rec=dist>md.best; if(rec)md.best=dist;
+  S.coins+=run.coins;
+  // mission checks
+  let msg=[];
+  for(const m of MISSIONS){if(S.missionsDone.includes(m.id))continue;
+    const val=m.type==='dist'?dist:m.type==='coins'?run.coins:run.fuelCans;
+    if(val>=m.goal){S.missionsDone.push(m.id);S.coins+=m.reward;msg.push(`Mission done! +${m.reward} 🪙`)}}
+  saveS();
+  document.getElementById('overReason').textContent=reason;
+  document.getElementById('overDist').textContent=dist+' m';
+  document.getElementById('overCoins').textContent=run.coins;
+  document.getElementById('overBest').textContent=md.best+' m';
+  document.getElementById('newRec').textContent=rec?'★ NEW RECORD!':'';
+  document.getElementById('reviveBtn').style.display=run.revived?'none':'block';
+  document.getElementById('dblBtn').style.display=run.doubled?'none':'block';
+  UI.show('scr-over');
+  if(msg.length)toast(msg.join(' · '));}
+
+/* ---------------- MAIN LOOP ---------------- */
+let lastT=performance.now();
+const camPos=new THREE.Vector3(4,4,14);
+function loop(now){
+  requestAnimationFrame(loop);
+  let dt=Math.min(0.05,(now-lastT)/1000);lastT=now;
+  tickMusic();
+  if(state==='playing'||state==='crash'){
+    if(state==='crash'){dt*=0.3;crashT+=dt;          // slow-motion crash cam
+      if(crashT>0.45)endRun('YOU CRASHED!');}
+    const sub=3;for(let i=0;i<sub;i++)physStep(dt/sub);
+    if(state==='playing'){
+      run.fuel-=dt*(0.7+(input.gas?1.5:0))*car.v.fuelUse;
+      if(run.fuel<=0){run.fuel=0;endRun('OUT OF FUEL!')}
+      if(car.x>run.maxX+0.5){run.maxX=car.x;run.lastProg=now/1000}
+      if(now/1000-run.lastProg>8&&state==='playing')endRun('STUCK TOO LONG!');
+    }
+    syncCarVisual();ensureChunks(car.x);spawnAhead(car.x);updatePickups(dt);updateParts(dt);
+    // engine audio
+    if(engGain&&S.settings.sound){const sp=Math.abs(car.vx);
+      engOsc.frequency.value=55+sp*6+(input.gas?40:0);
+      engGain.gain.value=state==='playing'?0.05+(input.gas?0.03:0):0;}
+    // smooth side-follow camera with speed zoom + shake
+    const sp=Math.abs(car.vx);
+    camPos.lerp(new THREE.Vector3(car.x+4+car.vx*0.15,car.y+2.6,12.5+Math.min(6,sp*0.22)),0.08);
+    shake=Math.max(0,shake-dt*2);
+    camera.position.set(camPos.x+(Math.random()-.5)*shake,camPos.y+(Math.random()-.5)*shake,camPos.z);
+    camera.lookAt(car.x+3.5,car.y+0.8,0);
+    // HUD
+    document.getElementById('hudDist').textContent=Math.floor(run.maxX-run.startX)+' m';
+    document.getElementById('hudCoins').textContent='🪙 '+run.coins;
+    document.getElementById('hudSpeed').textContent=Math.round(sp*3.6)+' km/h';
+    document.getElementById('fuelBar').style.width=(run.fuel/car.st.fuelCap*100)+'%';
+  }
+  renderer.render(scene,camera);
+}
+requestAnimationFrame(loop);
+
+/* ---------------- UI ---------------- */
+let gIdx=0;
+function toast(t){const el=document.getElementById('toast');el.textContent=t;el.style.display='block';
+  clearTimeout(el._t);el._t=setTimeout(()=>el.style.display='none',2600)}
+const UI={
+  show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('show'));
+    if(id)document.getElementById(id).classList.add('show')},
+  open(name){sfx('click');
+    if(name==='menu'){this.show('scr-menu');this.refreshCoins();this.daily()}
+    else if(name==='garage'){gIdx=VEHICLES.findIndex(v=>v.id===S.selV);this.renderGarage();this.show('scr-garage')}
+    else if(name==='maps'){this.renderMaps();this.show('scr-maps')}
+    else if(name==='missions'){this.renderMissions();this.show('scr-missions')}
+    else if(name==='settings'){this.renderSettings();this.show('scr-settings')}},
+  refreshCoins(){['menuCoins','garCoins','mapCoins'].forEach(i=>{const e=document.getElementById(i);if(e)e.textContent=S.coins})},
+  daily(){const t=new Date().toDateString();
+    if(S.lastDaily!==t){S.lastDaily=t;S.coins+=150;saveS();this.refreshCoins();toast('🎁 Daily reward: +150 coins!')}},
+  play(){sfx('click');audioInit();startRun()},
+  pause(){state='paused';document.getElementById('hud').classList.remove('show');
+    if(engGain)engGain.gain.value=0;this.show('scr-pause')},
+  resume(){sfx('click');state='playing';this.show(null);document.getElementById('hud').classList.add('show')},
+  restart(){sfx('click');startRun()},
+  quit(){sfx('click');state='menu';document.getElementById('hud').classList.remove('show');
+    if(engGain)engGain.gain.value=0;this.open('menu')},
+  revive(){ // simulated rewarded ad
+    sfx('upgrade');run.revived=true;
+    car.a=0;car.av=0;car.vx=0;car.vy=0;car.y=hAt(car.x)+1.3;run.fuel=car.st.fuelCap*0.5;
+    run.lastProg=performance.now()/1000;S.coins-=run.coins;saveS(); // (coins re-added at next end)
+    state='playing';this.show(null);document.getElementById('hud').classList.add('show');toast('Revived! Keep going!')},
+  doubleCoins(){sfx('upgrade');run.doubled=true;S.coins+=run.coins;saveS();
+    document.getElementById('dblBtn').style.display='none';toast('Coins doubled! +'+run.coins+' 🪙')},
+  /* ---- garage ---- */
+  garNav(d){gIdx=(gIdx+d+VEHICLES.length)%VEHICLES.length;sfx('click');this.renderGarage()},
+  renderGarage(){
+    this.refreshCoins();
+    const v=VEHICLES[gIdx],d=vehData(v.id),sel=S.selV===v.id;
+    const bars=[['Power',v.power/50,'engine'],['Grip',v.grip/1.6,'tires'],['Suspension',v.susp/1.5,'susp'],['Fuel',v.fuelCap/150,'fuel']];
+    let h=`<div class="navRow"><button class="arrow" onclick="UI.garNav(-1)">◀</button>
+      <div class="card"><div class="emoji">${v.icon}</div><h3>${v.name}</h3>`;
+    for(const[label,val,up]of bars){const lvl=d.upg[up];
+      h+=`<div class="statRow"><b>${label}</b><div class="bar"><i style="width:${Math.min(100,(val*(1+0.13*lvl))*100)}%"></i></div>`;
+      if(d.owned)h+=lvl>=MAX_UPG?`<span class="done">MAX</span>`
+        :`<button class="upBtn" ${S.coins<upgCost(lvl,gIdx)?'disabled':''} onclick="UI.upgrade('${up}')">⬆ ${upgCost(lvl,gIdx)}🪙</button>`;
+      h+=`</div>`;}
+    if(d.owned)h+=sel?`<button class="btn green" disabled>✔ SELECTED</button>`
+      :`<button class="btn green" onclick="UI.selectVeh()">SELECT</button>`;
+    else h+=`<button class="btn" ${S.coins<v.cost?'disabled':''} onclick="UI.buyVeh()">UNLOCK · ${v.cost}🪙</button>`;
+    h+=`</div><button class="arrow" onclick="UI.garNav(1)">▶</button></div>`;
+    document.getElementById('garageBody').innerHTML=h;},
+  upgrade(up){const v=VEHICLES[gIdx],d=vehData(v.id),c=upgCost(d.upg[up],gIdx);
+    if(S.coins<c||d.upg[up]>=MAX_UPG)return;S.coins-=c;d.upg[up]++;saveS();sfx('upgrade');this.renderGarage()},
+  buyVeh(){const v=VEHICLES[gIdx];if(S.coins<v.cost)return;S.coins-=v.cost;vehData(v.id).owned=true;S.selV=v.id;saveS();sfx('upgrade');this.renderGarage()},
+  selectVeh(){S.selV=VEHICLES[gIdx].id;saveS();sfx('click');this.renderGarage()},
+  /* ---- maps ---- */
+  renderMaps(){this.refreshCoins();let h='';
+    for(const m of MAPS){const d=mapData(m.id),sel=S.selM===m.id;
+      h+=`<div class="card"><div class="emoji">${m.icon}</div><h3>${m.name}</h3>
+        <div style="opacity:.7;font-size:13px;margin:4px 0">Best: ${d.best} m</div>`;
+      if(d.owned)h+=sel?`<button class="btn green" disabled>✔ SELECTED</button>`
+        :`<button class="btn green" onclick="UI.selectMap('${m.id}')">SELECT</button>`;
+      else h+=`<button class="btn" ${S.coins<m.cost?'disabled':''} onclick="UI.buyMap('${m.id}')">UNLOCK · ${m.cost}🪙</button>`;
+      h+=`</div>`;}
+    document.getElementById('mapsBody').innerHTML=h;},
+    selectMap(id) { S.selM = id; saveS(); sfx('click'); this.renderMaps() },
+    buyMap(id) {
+        const m = MAPS.find(x => x.id === id);
+        if (S.coins < m.cost) return;
+        S.coins -= m.cost;
+        mapData(id).owned = true;
+        S.selM = id;
+        saveS();
+        sfx('upgrade');
+        this.renderMaps();
+    },
+    /* ---- missions ---- */
+    renderMissions() {
+        let h = '';
+        for (const m of MISSIONS) {
+            const done = S.missionsDone.includes(m.id);
+            h += `<div class="card missionCard"><span>${done ? '✅' : '🎯'} ${m.desc}</span>
+        <span class="${done ? 'done' : ''}">${done ? 'DONE' : '+' + m.reward + '🪙'}</span></div>`;
+        }
+        document.getElementById('missionsBody').innerHTML = h;
+            },
+            /* ---- settings ---- */
+            renderSettings() {
+                document.getElementById('setSound').checked = S.settings.sound;
+                document.getElementById('setMusic').checked = S.settings.music;
+                document.getElementById('setQuality').value = S.settings.quality;
+                document.getElementById('setControl').value = S.settings.control;
+            },
+            resetProgress() { if (confirm('Delete ALL progress?')) { localStorage.removeItem('mt3d_save'); location.reload() } }
+        };
+
+        /* settings change handlers */
+        document.getElementById('setSound').onchange = e => { S.settings.sound = e.target.checked; saveS() };
+        document.getElementById('setMusic').onchange = e => { S.settings.music = e.target.checked; saveS() };
+        document.getElementById('setQuality').onchange = e => { S.settings.quality = +e.target.value; saveS(); applyQuality() };
+        document.getElementById('setControl').onchange = e => {
+            S.settings.control = e.target.value; saveS();
+            if (e.target.value === 'tilt' && typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission)
+                DeviceOrientationEvent.requestPermission().catch(() => { })
+        };
+        document.getElementById('pauseBtn').onclick = () => UI.pause();
+
+        /* boot: theme + idle background scene behind menu */
+        applyMapTheme(); ensureChunks(0);
+        camera.position.set(8, 6, 16); camera.lookAt(10, 2, 0);
+        UI.refreshCoins(); UI.daily();
+    </script>
+</body>
+
+</html>

@@ -77,9 +77,15 @@ CLERK_SECRET_KEY=sk_test_...
 - `.t-modal-backdrop` / `.t-modal-pop` — mount-in animation for centered dialogs (`{condition && <div>...}` pattern)
 - `.t-drawer-panel` — slide-in animation for right-side drawers (View / Create-Edit panels)
 - `.t-tabs` / `.t-tab` / `.t-tabs-pill` — sliding-pill segmented control (16-tabs-sliding), used by `src/components/dashboard/view-switcher.tsx`
-- `.t-skel*` / `.is-pulsing` — skeleton-reveal pulse; `dashboard/loading.tsx` uses `.is-pulsing`
+- `.t-skel*` / `.is-pulsing` — skeleton-reveal pulse; all `dashboard/**/loading.tsx` files and widget-level skeletons (`widget-wrapper.tsx`, `kpi-card.tsx`) use `.is-pulsing`
 - `.t-modal` (06-modal verbatim) — kept for future use with a proper open/close state machine
+- `.view-transition` — fade-in mount animation (`viewFadeIn 0.3s ease`) applied to view/content containers across all dashboard pages
 
-`src/components/dashboard/view-switcher.tsx` is a shared `ViewSwitcher` component (sliding-pill tab bar) used by the Leads Table/Kanban/Grid switcher and reusable on any page with a segmented view control.
+`src/components/dashboard/view-switcher.tsx` is a shared `ViewSwitcher` component (sliding-pill tab bar). Used for: Leads Table/Kanban/Grid, Tasks List/Board/Calendar, and Settings tab navigation (Organization/Integrations/Custom Fields/Notifications/Security) — reusable on any page with a segmented view control.
 
-Reference pattern applied to `src/app/dashboard/leads/page.tsx` and `src/app/dashboard/prospects/page.tsx`: `ViewSwitcher` (Leads only — Prospects has a single table view), `.t-modal-backdrop`/`.t-modal-pop` on all centered modals, `.t-modal-backdrop`/`.t-drawer-panel` on side drawers, `.view-transition` on the table container.
+This pattern has been rolled out to all dashboard pages (leads, prospects, deals, contracts, customers, contacts, tasks, team, activities, analytics, settings, workspace-engine, dashboard home):
+- `ViewSwitcher` where a page has a real Table/Kanban/Grid/List/Calendar/tab switcher (leads, tasks, settings); pages with a single view (prospects, customers, contacts, contracts, team, activities, analytics, workspace-engine) skip this step.
+- `.view-transition` on each view/content container (table, kanban board, grid, tab panel, timeline, etc.), with a `key="..."` when multiple views share a parent.
+- `.t-modal-backdrop` + `.t-modal-pop` on every centered modal (delete confirmations, add note, reminder, column editor, create/invite forms).
+- `.t-modal-backdrop` + `.t-drawer-panel` on every right-side drawer (view/create/edit panels).
+- `.is-pulsing` on every `loading.tsx` skeleton and widget-level loading skeleton.
