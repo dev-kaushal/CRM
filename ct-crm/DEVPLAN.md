@@ -86,3 +86,10 @@ Checkboxes are ticked only after the corresponding work is implemented AND verif
 3. For every centered modal: add `t-modal-backdrop` to the backdrop `<div className="absolute inset-0 bg-black/50...">` and `t-modal-pop` to the panel `<div className="relative ... rounded-2xl ... shadow-2xl">`.
 4. For every right-side drawer: add `t-modal-backdrop` to the backdrop and `t-drawer-panel` to the sliding panel.
 5. If the page has a `loading.tsx`, swap `animate-pulse` for `is-pulsing`.
+
+## Phase 8 — Dead Code Cleanup (hidden Workspace Engine / AI-agent UI)
+- [x] Removed `src/app/dashboard/workspace-engine/page.tsx`, `src/components/dashboard/widgets/ai-ready-section.tsx` (4,020 lines), and `src/lib/ai-data.ts` (724 lines, ~36 server actions). This page was already hidden from the sidebar (`src/lib/constants.ts` had it commented out as "kept for future use") and these three files only referenced each other — confirmed via grep with zero other usages in `src/`.
+- [x] Removed the now-stale commented-out Workspace Engine row from `SIDEBAR_ROUTES` in `src/lib/constants.ts`.
+- [x] Left the 28 backing DB tables (`agent_*`, `ai_*`, `workflow_*`, `whatsapp_*`, `*_scores`, `*_predictions`, etc.) untouched in `src/db/schema.ts`/Neon — dropping them requires a live schema migration and was out of scope for this cleanup; revisit if those tables are confirmed unused long-term.
+- [x] Verify: `npx tsc --noEmit` clean after removal.
+- Note: this hidden feature was code-split per-route, so its removal is a code-cleanliness win, not expected to change perceived dashboard performance.

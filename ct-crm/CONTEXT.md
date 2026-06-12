@@ -60,6 +60,7 @@ Key adaptation: `users.auth_user_id uuid REFERENCES auth.users(id)` → `users.c
 - `src/utils/supabase/` (client.ts, server.ts, middleware.ts)
 - `src/app/auth/callback/route.ts`
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` env vars
+- Hidden "Workspace Engine" / AI-agent UI: `src/app/dashboard/workspace-engine/`, `src/components/dashboard/widgets/ai-ready-section.tsx`, `src/lib/ai-data.ts` — dead code (page was never linked in `SIDEBAR_ROUTES`). The 28 backing `agent_*`/`ai_*`/`workflow_*`/etc. tables remain in `src/db/schema.ts`/Neon, unused by any current code path.
 
 ## Env Vars (`.env.local`, gitignored)
 ```
@@ -83,8 +84,8 @@ CLERK_SECRET_KEY=sk_test_...
 
 `src/components/dashboard/view-switcher.tsx` is a shared `ViewSwitcher` component (sliding-pill tab bar). Used for: Leads Table/Kanban/Grid, Tasks List/Board/Calendar, and Settings tab navigation (Organization/Integrations/Custom Fields/Notifications/Security) — reusable on any page with a segmented view control.
 
-This pattern has been rolled out to all dashboard pages (leads, prospects, deals, contracts, customers, contacts, tasks, team, activities, analytics, settings, workspace-engine, dashboard home):
-- `ViewSwitcher` where a page has a real Table/Kanban/Grid/List/Calendar/tab switcher (leads, tasks, settings); pages with a single view (prospects, customers, contacts, contracts, team, activities, analytics, workspace-engine) skip this step.
+This pattern has been rolled out to all dashboard pages (leads, prospects, deals, contracts, customers, contacts, tasks, team, activities, analytics, settings, dashboard home):
+- `ViewSwitcher` where a page has a real Table/Kanban/Grid/List/Calendar/tab switcher (leads, tasks, settings); pages with a single view (prospects, customers, contacts, contracts, team, activities, analytics) skip this step.
 - `.view-transition` on each view/content container (table, kanban board, grid, tab panel, timeline, etc.), with a `key="..."` when multiple views share a parent.
 - `.t-modal-backdrop` + `.t-modal-pop` on every centered modal (delete confirmations, add note, reminder, column editor, create/invite forms).
 - `.t-modal-backdrop` + `.t-drawer-panel` on every right-side drawer (view/create/edit panels).
