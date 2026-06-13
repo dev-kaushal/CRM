@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getTasks, createTask, updateTaskStatus } from "@/server/tasks";
 import { WidgetWrapper } from "@/components/dashboard/widgets/widget-wrapper";
 import { ViewSwitcher } from "@/components/dashboard/view-switcher";
@@ -105,6 +106,16 @@ export default function TasksPage() {
   };
 
   useEffect(() => { fetchTasks(); }, []);
+
+  // Header "Create Task" quick action (?new=1) auto-opens this page's create modal
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setIsModalOpen(true);
+      router.replace("/dashboard/tasks", { scroll: false });
+    }
+  }, [searchParams]);
 
   const handleUpdateStatus = async (id: string, nextStatus: Task["status"]) => {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, status: nextStatus } : t));

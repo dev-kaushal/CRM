@@ -5,7 +5,65 @@ import { useRouter } from "next/navigation";
 import { useSidebar } from "@/hooks/use-sidebar";
 import { useUser } from "@/hooks/use-user";
 import { useTheme } from "@/components/theme-provider";
-import { Sun, Moon, Search, Bell } from "lucide-react";
+import { playThemeToggleSound } from "@/lib/sound";
+import { getAllReminders } from "@/server/calendar";
+import { globalSearch, type SearchResult } from "@/server/search";
+import {
+  MenuIcon,
+  SearchIcon,
+  CirclePlusIcon,
+  UserPlusIcon,
+  HandCoinsIcon,
+  CheckCheckIcon,
+  ContactIcon,
+  BellIcon,
+  SunIcon,
+  MoonIcon,
+  UserRoundIcon,
+  SettingsIcon,
+  LogoutIcon,
+  XIcon,
+} from "@animateicons/react/lucide";
+
+interface ReminderItem {
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  entity_name: string;
+  title: string;
+  type: string;
+  datetime: string;
+  done: boolean;
+}
+
+const QUICK_ACTIONS = [
+  { label: "Create Lead", Icon: UserPlusIcon, href: "/dashboard/leads?new=1" },
+  { label: "Create Deal", Icon: HandCoinsIcon, href: "/dashboard/deals?new=1" },
+  { label: "Create Task", Icon: CheckCheckIcon, href: "/dashboard/tasks?new=1" },
+  { label: "Create Contact", Icon: ContactIcon, href: "/dashboard/contacts?new=1" },
+];
+
+const RESULT_TYPE_META: Record<SearchResult["type"], { label: string; color: string }> = {
+  lead: { label: "Lead", color: "#3b82f6" },
+  deal: { label: "Deal", color: "#10b981" },
+  contact: { label: "Contact", color: "#a855f7" },
+  customer: { label: "Customer", color: "#f97316" },
+};
+
+function notificationHref(r: ReminderItem) {
+  switch (r.entity_type) {
+    case "lead":
+      return `/dashboard/leads/${r.entity_id}`;
+    case "prospect":
+      return "/dashboard/prospects";
+    case "contact":
+      return "/dashboard/contacts";
+    case "customer":
+      return "/dashboard/customers";
+    default:
+      return "/dashboard/calendar";
+  }
+}
 
 export function Header() {
   const { collapsed, toggle } = useSidebar();
@@ -15,8 +73,31 @@ export function Header() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const quickActionsRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
+
+  // Animated icon refs
+  const menuIconRef = useRef<any>(null);
+  const searchIconRef = useRef<any>(null);
+  const modalSearchIconRef = useRef<any>(null);
+  const closeIconRef = useRef<any>(null);
+  const quickActionsIconRef = useRef<any>(null);
+  const quickActionItemRefs = useRef<any[]>([]);
+  const bellIconRef = useRef<any>(null);
+  const themeIconRef = useRef<any>(null);
+  const profileIconRef = useRef<any>(null);
+  const settingsIconRef = useRef<any>(null);
+  const logoutIconRef = useRef<any>(null);
+
+  // Search modal state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  // Notifications state — overdue + due-today reminders across all entities
+  const [notifications, setNotifications] = useState<ReminderItem[]>([]);
 
   // Keyboard shortcut: CMD+K for search
   useEffect(() => {
@@ -29,6 +110,7 @@ export function Header() {
         setShowSearch(false);
         setShowUserMenu(false);
         setShowQuickActions(false);
+        setShowNotifications(false);
       }
     };
     window.addEventListener("keydown", handler);
@@ -44,15 +126,70 @@ export function Header() {
       if (quickActionsRef.current && !quickActionsRef.current.contains(e.target as Node)) {
         setShowQuickActions(false);
       }
+      if (notificationsRef.current && !notificationsRef.current.contains(e.target as Node)) {
+        setShowNotifications(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  // Load overdue + due-today reminders for the notifications bell
+  useEffect(() => {
+    let cancelled = false;
+    getAllReminders()
+      .then((rows) => {
+        if (cancelled) return;
+        const endOfToday = new Date();
+        endOfToday.setHours(23, 59, 59, 999);
+        const due = (rows as ReminderItem[]).filter((r) => !r.done && new Date(r.datetime) <= endOfToday);
+        setNotifications(due);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Debounced global search
+  useEffect(() => {
+    if (!showSearch) return;
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const handle = setTimeout(() => {
+      globalSearch(q)
+        .then((results) => setSearchResults(results))
+        .catch(() => setSearchResults([]))
+        .finally(() => setSearching(false));
+    }, 250);
+    return () => clearTimeout(handle);
+  }, [searchQuery, showSearch]);
+
+  // Reset search state when modal closes
+  useEffect(() => {
+    if (!showSearch) {
+      setSearchQuery("");
+      setSearchResults([]);
+    }
+  }, [showSearch]);
+
   const handleSignOut = async () => {
     await signOut();
     router.push("/");
     router.refresh();
+  };
+
+  const goTo = (href: string) => {
+    setShowSearch(false);
+    setShowQuickActions(false);
+    setShowUserMenu(false);
+    setShowNotifications(false);
+    router.push(href);
   };
 
   const initials = user?.user_metadata?.full_name
@@ -63,6 +200,8 @@ export function Header() {
         .toUpperCase()
         .slice(0, 2)
     : user?.email?.slice(0, 2).toUpperCase() || "CT";
+
+  const overdueCount = notifications.length;
 
   return (
     <>
@@ -76,31 +215,25 @@ export function Header() {
         {/* Left: Collapse + Search */}
         <div className="flex items-center gap-3">
           <button
-            onClick={toggle}
+            onClick={() => {
+              menuIconRef.current?.startAnimation();
+              toggle();
+            }}
+            onMouseEnter={() => menuIconRef.current?.startAnimation()}
+            onMouseLeave={() => menuIconRef.current?.stopAnimation()}
             className="w-9 h-9 rounded-lg flex items-center justify-center hover:opacity-80 active:scale-95"
             style={{ background: "var(--accent)", color: "var(--text-color)", transition: "opacity 0.15s ease" }}
             aria-label="Toggle Sidebar"
+            title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              {collapsed ? (
-                <>
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="12" x2="21" y2="12" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
-                </>
-              ) : (
-                <>
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="12" x2="15" y2="12" />
-                  <line x1="3" y1="18" x2="18" y2="18" />
-                </>
-              )}
-            </svg>
+            <MenuIcon ref={menuIconRef} size={18} />
           </button>
 
           {/* Search trigger */}
           <button
             onClick={() => setShowSearch(true)}
+            onMouseEnter={() => searchIconRef.current?.startAnimation()}
+            onMouseLeave={() => searchIconRef.current?.stopAnimation()}
             className="hidden md:flex items-center gap-2 h-9 pl-3 pr-3 rounded-xl text-sm hover:opacity-80"
             style={{
               background: "var(--accent)",
@@ -109,7 +242,7 @@ export function Header() {
               transition: "opacity 0.15s ease",
             }}
           >
-            <Search size={15} />
+            <SearchIcon ref={searchIconRef} size={15} />
             <span>Search...</span>
             <kbd
               className="ml-4 text-[10px] font-semibold px-1.5 py-0.5 rounded"
@@ -126,60 +259,117 @@ export function Header() {
           <div className="relative" ref={quickActionsRef}>
             <button
               onClick={() => setShowQuickActions(!showQuickActions)}
-              className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold hover:opacity-80 active:scale-95"
+              onMouseEnter={() => quickActionsIconRef.current?.startAnimation()}
+              onMouseLeave={() => quickActionsIconRef.current?.stopAnimation()}
+              className="w-9 h-9 rounded-lg flex items-center justify-center hover:opacity-80 active:scale-95"
               style={{ background: "var(--graph-to)", color: "#0a0a0a", transition: "opacity 0.15s ease" }}
               aria-label="Quick Actions"
             >
-              +
+              <CirclePlusIcon ref={quickActionsIconRef} size={18} />
             </button>
             {showQuickActions && (
               <div
                 className="absolute right-0 mt-2 w-48 rounded-xl overflow-hidden shadow-lg z-50"
                 style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}
               >
-                {[
-                  { label: "Create Lead", emoji: "🎯" },
-                  { label: "Create Deal", emoji: "💰" },
-                  { label: "Create Task", emoji: "✅" },
-                  { label: "Create Contact", emoji: "👤" },
-                ].map((action) => (
-                  <button
-                    key={action.label}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-accent"
-                    style={{ color: "var(--text-color)", transition: "background 0.1s ease" }}
-                    onClick={() => setShowQuickActions(false)}
-                  >
-                    <span>{action.emoji}</span>
-                    <span>{action.label}</span>
-                  </button>
-                ))}
+                {QUICK_ACTIONS.map((action, i) => {
+                  const Icon = action.Icon;
+                  return (
+                    <button
+                      key={action.label}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-accent"
+                      style={{ color: "var(--text-color)", transition: "background 0.1s ease" }}
+                      onClick={() => goTo(action.href)}
+                      onMouseEnter={() => quickActionItemRefs.current[i]?.startAnimation()}
+                      onMouseLeave={() => quickActionItemRefs.current[i]?.stopAnimation()}
+                    >
+                      <Icon ref={(el: any) => { quickActionItemRefs.current[i] = el; }} size={15} />
+                      <span>{action.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
 
           {/* Notifications */}
-          <button
-            className="relative w-9 h-9 rounded-lg flex items-center justify-center hover:opacity-80"
-            style={{ background: "var(--accent)", color: "var(--text-color)", transition: "opacity 0.15s ease" }}
-            aria-label="Notifications"
-          >
-            <Bell size={18} />
-            <span
-              className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold"
-              style={{ background: "#ef4444", color: "#fff" }}
+          <div className="relative" ref={notificationsRef}>
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              onMouseEnter={() => bellIconRef.current?.startAnimation()}
+              onMouseLeave={() => bellIconRef.current?.stopAnimation()}
+              className="relative w-9 h-9 rounded-lg flex items-center justify-center hover:opacity-80"
+              style={{ background: "var(--accent)", color: "var(--text-color)", transition: "opacity 0.15s ease" }}
+              aria-label="Notifications"
             >
-              3
-            </span>
-          </button>
+              <BellIcon ref={bellIconRef} size={18} />
+              {overdueCount > 0 && (
+                <span
+                  className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-0.5 rounded-full flex items-center justify-center text-[9px] font-bold"
+                  style={{ background: "#ef4444", color: "#fff" }}
+                >
+                  {overdueCount > 9 ? "9+" : overdueCount}
+                </span>
+              )}
+            </button>
+
+            {showNotifications && (
+              <div
+                className="absolute right-0 mt-2 w-80 rounded-xl overflow-hidden shadow-lg z-50"
+                style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}
+              >
+                <div className="px-4 py-3 text-sm font-semibold" style={{ borderBottom: "1px solid var(--card-border)", color: "var(--text-color)" }}>
+                  Notifications
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <p className="px-4 py-6 text-center text-xs text-muted-foreground">You're all caught up.</p>
+                  ) : (
+                    notifications.map((r) => {
+                      const overdue = new Date(r.datetime) < new Date(new Date().setHours(0, 0, 0, 0));
+                      return (
+                        <button
+                          key={r.id}
+                          onClick={() => goTo(notificationHref(r))}
+                          className="w-full flex items-start gap-2.5 px-4 py-2.5 text-left hover:bg-accent"
+                          style={{ transition: "background 0.1s ease" }}
+                        >
+                          <span
+                            className="mt-1 w-1.5 h-1.5 rounded-full shrink-0"
+                            style={{ background: overdue ? "#ef4444" : "#f59e0b" }}
+                          />
+                          <span className="flex flex-col min-w-0">
+                            <span className="text-xs font-medium truncate" style={{ color: "var(--text-color)" }}>{r.title}</span>
+                            <span className="text-[11px] text-muted-foreground truncate">
+                              {r.entity_name || r.entity_type} · {new Date(r.datetime).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+                <button
+                  onClick={() => goTo("/dashboard/calendar")}
+                  className="w-full px-4 py-2.5 text-xs font-semibold text-center hover:bg-accent"
+                  style={{ borderTop: "1px solid var(--card-border)", color: "var(--graph-to)", transition: "background 0.1s ease" }}
+                >
+                  View Calendar
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Theme Toggle */}
           <button
-            onClick={toggleTheme}
+            onClick={() => { playThemeToggleSound(theme === "dark" ? "light" : "dark"); toggleTheme(); }}
+            onMouseEnter={() => themeIconRef.current?.startAnimation()}
+            onMouseLeave={() => themeIconRef.current?.stopAnimation()}
             className="w-9 h-9 rounded-lg flex items-center justify-center hover:opacity-80 active:scale-95"
             style={{ background: "var(--accent)", color: "var(--text-color)", transition: "opacity 0.15s ease" }}
             aria-label="Toggle Theme"
           >
-            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+            {theme === "dark" ? <SunIcon ref={themeIconRef} size={18} /> : <MoonIcon ref={themeIconRef} size={18} />}
           </button>
 
           {/* User Menu */}
@@ -217,24 +407,31 @@ export function Header() {
                   <button
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-accent"
                     style={{ color: "var(--text-color)", transition: "background 0.1s ease" }}
+                    onMouseEnter={() => profileIconRef.current?.startAnimation()}
+                    onMouseLeave={() => profileIconRef.current?.stopAnimation()}
+                    onClick={() => goTo("/dashboard/settings?tab=security")}
                   >
-                    <span>👤</span> Profile
+                    <UserRoundIcon ref={profileIconRef} size={15} /> Profile
                   </button>
                   <button
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-accent"
                     style={{ color: "var(--text-color)", transition: "background 0.1s ease" }}
-                    onClick={() => { setShowUserMenu(false); router.push("/dashboard/settings"); }}
+                    onMouseEnter={() => settingsIconRef.current?.startAnimation()}
+                    onMouseLeave={() => settingsIconRef.current?.stopAnimation()}
+                    onClick={() => goTo("/dashboard/settings")}
                   >
-                    <span>⚙️</span> Settings
+                    <SettingsIcon ref={settingsIconRef} size={15} /> Settings
                   </button>
                 </div>
                 <div style={{ borderTop: "1px solid var(--card-border)" }}>
                   <button
                     onClick={handleSignOut}
+                    onMouseEnter={() => logoutIconRef.current?.startAnimation()}
+                    onMouseLeave={() => logoutIconRef.current?.stopAnimation()}
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-destructive/10"
                     style={{ color: "#ef4444", transition: "background 0.1s ease" }}
                   >
-                    <span>🚪</span> Sign Out
+                    <LogoutIcon ref={logoutIconRef} size={15} /> Sign Out
                   </button>
                 </div>
               </div>
@@ -252,20 +449,70 @@ export function Header() {
             style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}
           >
             <div className="flex items-center gap-3 px-4 h-14" style={{ borderBottom: "1px solid var(--card-border)" }}>
-              <Search size={18} style={{ color: "var(--muted-foreground)" }} />
+              <SearchIcon ref={modalSearchIconRef} size={18} isAnimated style={{ color: "var(--muted-foreground)" }} />
               <input
                 autoFocus
                 type="text"
-                placeholder="Search leads, deals, contacts, tasks..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => modalSearchIconRef.current?.startAnimation()}
+                placeholder="Search leads, deals, contacts, customers..."
                 className="flex-1 bg-transparent outline-none text-sm"
                 style={{ color: "var(--text-color)" }}
               />
+              <button
+                onClick={() => setShowSearch(false)}
+                onMouseEnter={() => closeIconRef.current?.startAnimation()}
+                onMouseLeave={() => closeIconRef.current?.stopAnimation()}
+                className="w-6 h-6 rounded flex items-center justify-center hover:opacity-80"
+                style={{ color: "var(--muted-foreground)" }}
+                aria-label="Close search"
+              >
+                <XIcon ref={closeIconRef} size={14} />
+              </button>
               <kbd className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "var(--card-border)", color: "var(--muted-foreground)" }}>
                 ESC
               </kbd>
             </div>
-            <div className="px-4 py-6 text-center">
-              <p className="text-sm text-muted-foreground">Start typing to search across your CRM...</p>
+            <div className="max-h-96 overflow-y-auto">
+              {searchQuery.trim().length < 2 ? (
+                <div className="px-4 py-6 text-center">
+                  <p className="text-sm text-muted-foreground">Start typing to search across your CRM...</p>
+                </div>
+              ) : searching ? (
+                <div className="px-4 py-6 text-center">
+                  <p className="text-sm text-muted-foreground">Searching...</p>
+                </div>
+              ) : searchResults.length === 0 ? (
+                <div className="px-4 py-6 text-center">
+                  <p className="text-sm text-muted-foreground">No results for "{searchQuery}"</p>
+                </div>
+              ) : (
+                <div className="py-1">
+                  {searchResults.map((r) => {
+                    const meta = RESULT_TYPE_META[r.type];
+                    return (
+                      <button
+                        key={`${r.type}-${r.id}`}
+                        onClick={() => goTo(r.href)}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-accent"
+                        style={{ transition: "background 0.1s ease" }}
+                      >
+                        <span
+                          className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0"
+                          style={{ background: `${meta.color}22`, color: meta.color }}
+                        >
+                          {meta.label}
+                        </span>
+                        <span className="flex flex-col min-w-0">
+                          <span className="text-sm font-medium truncate" style={{ color: "var(--text-color)" }}>{r.title}</span>
+                          {r.subtitle && <span className="text-[11px] text-muted-foreground truncate">{r.subtitle}</span>}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>

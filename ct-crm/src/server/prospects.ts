@@ -153,6 +153,50 @@ export async function getProspectReminders() {
   }));
 }
 
+// Converts an existing Lead into a Prospect (#15) — unlike createProspect()
+// this does NOT create a new lead row, it links a `prospects` row to the
+// existing lead and advances its status. Returns the existing prospect if
+// one is already linked (idempotent).
+export async function convertLeadToProspect(leadId: string, bant: { budget: number; authority: string; need: string; timeline: string; industry?: string; city?: string }) {
+  const dbUser = await getOrCreateDbUser();
+
+  const [lead] = await db
+    .select({ id: leads.id, source: leads.source })
+    .from(leads)
+    .where(and(eq(leads.id, leadId), eq(leads.organizationId, dbUser.organizationId)))
+    .limit(1);
+  if (!lead) throw new Error("Lead not found");
+
+  const existing = await db.select({ id: prospects.id }).from(prospects).where(eq(prospects.leadId, leadId)).limit(1);
+  if (existing.length > 0) return existing[0];
+
+  await db
+    .update(leads)
+    .set({ status: "QUALIFIED", industry: bant.industry, city: bant.city, updatedAt: new Date() })
+    .where(eq(leads.id, leadId));
+
+  const [prospect] = await db
+    .insert(prospects)
+    .values({
+      leadId,
+      budget: String(bant.budget ?? 0),
+      authority: true,
+      need: bant.need,
+      timeline: bant.timeline,
+      qualifiedBy: dbUser.id,
+      status: "QUALIFIED",
+      source: lead.source,
+      industry: bant.industry,
+      city: bant.city,
+      notes: `Decision maker / authority: ${bant.authority}`,
+      starred: false,
+      tags: [],
+    })
+    .returning({ id: prospects.id });
+
+  return prospect;
+}
+
 export async function createProspect(input: ProspectInput) {
   const dbUser = await getOrCreateDbUser();
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getDeals, updateDealStage, createDeal } from "@/server/deals";
 import { WidgetWrapper } from "@/components/dashboard/widgets/widget-wrapper";
 import { toast } from "sonner";
@@ -72,6 +73,16 @@ export default function DealsPage() {
   useEffect(() => {
     fetchDeals();
   }, []);
+
+  // Header "Create Deal" quick action (?new=1) auto-opens this page's create modal
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setIsModalOpen(true);
+      router.replace("/dashboard/deals", { scroll: false });
+    }
+  }, [searchParams]);
 
   const handleUpdateStage = async (id: string, nextStage: Deal["stage"]) => {
     const prob = STAGE_MULTIPLIERS[nextStage];

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@/hooks/use-user";
 import { getDashboardData } from "@/server/analytics";
+import { getAllReminders, toggleReminderDone, snoozeReminder } from "@/server/calendar";
 import { KPICard } from "@/components/dashboard/widgets/kpi-card";
 import { PipelineFunnel } from "@/components/dashboard/widgets/pipeline-funnel";
 import { RevenueTrend } from "@/components/dashboard/widgets/revenue-trend";
@@ -11,6 +12,9 @@ import { DealHealth } from "@/components/dashboard/widgets/deal-health";
 import { TaskCenter } from "@/components/dashboard/widgets/task-center";
 import { ActivityFeed } from "@/components/dashboard/widgets/activity-feed";
 import { TeamPerformance } from "@/components/dashboard/widgets/team-performance";
+import { PipelineOverview, type PipelineOverviewData } from "@/components/dashboard/widgets/pipeline-overview";
+import { TodaysReminders, type ReminderItem } from "@/components/dashboard/widgets/todays-reminders";
+import { DateRangePicker, getDateRangeBounds, type DateRangeValue } from "@/components/dashboard/date-range-picker";
 import type { KPIMetric, Activity, Task } from "@/lib/types";
 
 // ============================================
@@ -131,6 +135,8 @@ const DEMO_DEAL_HEALTH = {
   contract: 6,
 };
 
+const DEMO_PIPELINE_OVERVIEW: PipelineOverviewData = { leads: 48, prospects: 31, deals: 24, won: 18, lost: 6 };
+
 const now = new Date().toISOString();
 const yesterday = new Date(Date.now() - 86400000).toISOString();
 const twoDaysAgo = new Date(Date.now() - 172800000).toISOString();
@@ -172,6 +178,7 @@ export default function DashboardPage() {
 
   const [kpiMetrics, setKpiMetrics] = useState<KPIMetric[]>(DEMO_KPI);
   const [pipelineData, setPipelineData] = useState<any[]>(DEMO_PIPELINE);
+  const [pipelineOverview, setPipelineOverview] = useState<PipelineOverviewData>(DEMO_PIPELINE_OVERVIEW);
   const [revenueData, setRevenueData] = useState<any[]>(DEMO_REVENUE);
   const [leadSources, setLeadSources] = useState<any[]>(DEMO_LEAD_SOURCES);
   const [dealHealth, setDealHealth] = useState<any>(DEMO_DEAL_HEALTH);
@@ -179,13 +186,26 @@ export default function DashboardPage() {
   const [activities, setActivities] = useState<Activity[]>(DEMO_ACTIVITIES);
   const [teamMembers, setTeamMembers] = useState<any[]>(DEMO_TEAM);
 
+  // Date-range filter (#24) applied to KPI cards, pipeline funnel, and revenue trend.
+  const [dateRange, setDateRange] = useState<DateRangeValue>({ preset: "all" });
+
+  // Today's Reminders (#25)
+  const [reminders, setReminders] = useState<ReminderItem[]>([]);
+  const [remindersLoading, setRemindersLoading] = useState(true);
+
   // Fetch real data from Supabase (kick off immediately, don't wait for auth loading)
   useEffect(() => {
     const fetchDashboardData = async () => {
+      setDataLoading(true);
       try {
-        const data = await getDashboardData();
+        const bounds = getDateRangeBounds(dateRange);
+        const range = bounds.from || bounds.to
+          ? { from: bounds.from?.toISOString(), to: bounds.to?.toISOString() }
+          : undefined;
+        const data = await getDashboardData(range);
         setKpiMetrics(data.kpiMetrics);
         setPipelineData(data.pipelineData);
+        setPipelineOverview(data.pipelineOverview);
         setRevenueData(data.revenueData);
         setLeadSources(data.leadSources.length > 0 ? data.leadSources : DEMO_LEAD_SOURCES);
         setDealHealth(data.dealHealth);
@@ -197,6 +217,7 @@ export default function DashboardPage() {
         // Fall back explicitly to demo data
         setKpiMetrics(DEMO_KPI);
         setPipelineData(DEMO_PIPELINE);
+        setPipelineOverview(DEMO_PIPELINE_OVERVIEW);
         setLeadSources(DEMO_LEAD_SOURCES);
         setDealHealth(DEMO_DEAL_HEALTH);
         setTasks(DEMO_TASKS);
@@ -208,7 +229,43 @@ export default function DashboardPage() {
     };
 
     fetchDashboardData();
+  }, [dateRange]);
+
+  // Today's Reminders — independent of the KPI date range, always "today".
+  useEffect(() => {
+    const fetchReminders = async () => {
+      try {
+        const start = new Date(); start.setHours(0, 0, 0, 0);
+        const end = new Date(); end.setHours(23, 59, 59, 999);
+        const rows = await getAllReminders(start, end);
+        setReminders(rows);
+      } catch (err) {
+        console.warn("Failed to load today's reminders.", err);
+      } finally {
+        setRemindersLoading(false);
+      }
+    };
+
+    fetchReminders();
   }, []);
+
+  const handleToggleReminder = async (id: string, done: boolean) => {
+    setReminders((prev) => prev.map((r) => (r.id === id ? { ...r, done } : r)));
+    try {
+      await toggleReminderDone(id, done);
+    } catch (err) {
+      console.warn("Failed to update reminder.", err);
+    }
+  };
+
+  const handleSnoozeReminder = async (id: string) => {
+    setReminders((prev) => prev.filter((r) => r.id !== id));
+    try {
+      await snoozeReminder(id, 1);
+    } catch (err) {
+      console.warn("Failed to snooze reminder.", err);
+    }
+  };
 
   const todayTasks = tasks.filter((t) => {
     const d = new Date(t.due_date);
@@ -242,7 +299,7 @@ export default function DashboardPage() {
             Welcome back, {user?.user_metadata?.first_name || "there"}. Here&apos;s your CRM overview.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">
             {new Date().toLocaleDateString("en-IN", {
               weekday: "long",
@@ -251,8 +308,12 @@ export default function DashboardPage() {
               year: "numeric",
             })}
           </span>
+          <DateRangePicker value={dateRange} onChange={setDateRange} />
         </div>
       </div>
+
+      {/* Pipeline Overview — Leads / Prospects / Deals / Won / Lost (#12, #23) */}
+      <PipelineOverview data={pipelineOverview} loading={dataLoading} />
 
       {/* ROW 1 — KPI Cards */}
       <div className="grid grid-cols-4 gap-4">
@@ -272,8 +333,8 @@ export default function DashboardPage() {
         <RevenueTrend data={revenueData} loading={dataLoading} />
       </div>
 
-      {/* ROW 4 & 5 — Lead Velocity + Deal Health */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* ROW 4 & 5 — Lead Velocity + Deal Health + Today's Reminders */}
+      <div className="grid grid-cols-3 gap-4">
         <LeadVelocity
           sourceData={leadSources}
           newToday={6}
@@ -283,6 +344,12 @@ export default function DashboardPage() {
           loading={dataLoading}
         />
         <DealHealth data={dealHealth} loading={dataLoading} />
+        <TodaysReminders
+          reminders={reminders}
+          loading={remindersLoading}
+          onToggle={handleToggleReminder}
+          onSnooze={handleSnoozeReminder}
+        />
       </div>
 
       {/* ROW 6 & 7 — Task Center + Activity Feed */}

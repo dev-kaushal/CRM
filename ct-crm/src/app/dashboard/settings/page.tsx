@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { getOrganization, updateOrganizationName } from "@/server/organizations";
 import { toast } from "sonner";
 import {
@@ -118,7 +119,11 @@ const TABS = [
 // Component
 // ============================================
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState("organization");
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(
+    TABS.some(t => t.id === initialTab) ? (initialTab as string) : "organization"
+  );
   const [org, setOrg] = useState<OrgSettings>(DEMO_ORG);
   const [integrations, setIntegrations] = useState(DEMO_INTEGRATIONS);
   const [customFields] = useState(DEMO_CUSTOM_FIELDS);

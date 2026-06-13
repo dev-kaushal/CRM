@@ -12,6 +12,27 @@ import type { KPIMetric, Task, TaskType, TaskPriority, TaskStatus, Activity, Act
 
 const PIPELINE_COLORS = ["#3b82f6", "#f97316", "#eab308", "#8b5cf6", "#10b981"];
 
+/** Optional date-range bounds (ISO strings) accepted by the dashboard/analytics queries. */
+export interface AnalyticsRange {
+  from?: string;
+  to?: string;
+}
+
+function parseRange(range?: AnalyticsRange) {
+  return {
+    from: range?.from ? new Date(range.from) : null,
+    to: range?.to ? new Date(range.to) : null,
+  };
+}
+
+function inRange(d: Date | null | undefined, from: Date | null, to: Date | null): boolean {
+  if (!from && !to) return true;
+  if (!d) return false;
+  if (from && d < from) return false;
+  if (to && d > to) return false;
+  return true;
+}
+
 function lastNMonths(n: number) {
   const out: { label: string; year: number; month: number }[] = [];
   const now = new Date();
@@ -22,6 +43,37 @@ function lastNMonths(n: number) {
   return out;
 }
 
+/** Revenue trend: daily buckets within an explicit range (capped at 92 days), else the last N months. */
+function revenueTrend(wonDeals: { value: string | number | null; createdAt: Date | null; updatedAt: Date | null }[], from: Date | null, to: Date | null, fallbackMonths = 12) {
+  if (from && to) {
+    const days: { month: string; revenue: number }[] = [];
+    const cursor = new Date(from);
+    cursor.setHours(0, 0, 0, 0);
+    const end = new Date(to);
+    end.setHours(0, 0, 0, 0);
+    let i = 0;
+    while (cursor <= end && i < 92) {
+      const dayKey = cursor.toDateString();
+      const revenue = wonDeals
+        .filter((d) => (d.updatedAt ?? d.createdAt ?? new Date()).toDateString() === dayKey)
+        .reduce((s, d) => s + Number(d.value), 0);
+      days.push({ month: cursor.toLocaleDateString("en-IN", { day: "numeric", month: "short" }), revenue });
+      cursor.setDate(cursor.getDate() + 1);
+      i++;
+    }
+    return days;
+  }
+  return lastNMonths(fallbackMonths).map((m) => ({
+    month: m.label,
+    revenue: wonDeals
+      .filter((d) => {
+        const dt = d.updatedAt ?? d.createdAt ?? new Date();
+        return dt.getFullYear() === m.year && dt.getMonth() === m.month;
+      })
+      .reduce((s, d) => s + Number(d.value), 0),
+  }));
+}
+
 async function loadOrgSnapshot() {
   const dbUser = await getOrCreateDbUser();
   const orgId = dbUser.organizationId;
@@ -30,12 +82,12 @@ async function loadOrgSnapshot() {
     db.select().from(leads).where(eq(leads.organizationId, orgId)),
     db.select().from(deals).where(eq(deals.organizationId, orgId)),
     db
-      .select({ id: contracts.id, status: contracts.status, value: contracts.value })
+      .select({ id: contracts.id, status: contracts.status, value: contracts.value, createdAt: contracts.createdAt })
       .from(contracts)
       .innerJoin(deals, eq(contracts.dealId, deals.id))
       .where(eq(deals.organizationId, orgId)),
     db
-      .select({ id: prospects.id })
+      .select({ id: prospects.id, qualifiedAt: prospects.qualifiedAt })
       .from(prospects)
       .innerJoin(leads, eq(prospects.leadId, leads.id))
       .where(eq(leads.organizationId, orgId)),
@@ -46,24 +98,32 @@ async function loadOrgSnapshot() {
   return { dbUser, leadRows, dealRows, contractRows, prospectRows, customerRows, taskRows };
 }
 
-export async function getDashboardData() {
+export async function getDashboardData(range?: AnalyticsRange) {
   const { dbUser, leadRows, dealRows, contractRows, prospectRows, customerRows, taskRows } = await loadOrgSnapshot();
+  const { from, to } = parseRange(range);
 
-  const wonDeals = dealRows.filter((d) => d.stage === "WON");
-  const openDeals = dealRows.filter((d) => d.stage !== "WON" && d.stage !== "LOST");
+  const scopedLeads = leadRows.filter((l) => inRange(l.createdAt, from, to));
+  const scopedDeals = dealRows.filter((d) => inRange(d.createdAt, from, to));
+  const scopedContracts = contractRows.filter((c) => inRange(c.createdAt, from, to));
+  const scopedProspects = prospectRows.filter((p) => inRange(p.qualifiedAt, from, to));
+  const scopedCustomers = customerRows.filter((c) => inRange(c.customerSince, from, to));
+
+  const wonDeals = scopedDeals.filter((d) => d.stage === "WON");
+  const lostDeals = scopedDeals.filter((d) => d.stage === "LOST");
+  const openDeals = scopedDeals.filter((d) => d.stage !== "WON" && d.stage !== "LOST");
   const totalRevenue = wonDeals.reduce((s, d) => s + Number(d.value), 0);
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthlyRevenue = wonDeals
-    .filter((d) => (d.updatedAt ?? d.createdAt ?? now) >= monthStart)
+  const monthlyRevenue = dealRows
+    .filter((d) => d.stage === "WON" && (d.updatedAt ?? d.createdAt ?? now) >= monthStart)
     .reduce((s, d) => s + Number(d.value), 0);
 
-  const qualifiedLeadsCount = leadRows.filter((l) => l.status === "QUALIFIED").length;
-  const signedContractsCount = contractRows.filter((c) => c.status === "SIGNED").length;
+  const qualifiedLeadsCount = scopedLeads.filter((l) => l.status === "QUALIFIED").length;
+  const signedContractsCount = scopedContracts.filter((c) => c.status === "SIGNED").length;
   const todayStr = now.toDateString();
   const tasksDueToday = taskRows.filter((t) => !t.isCompleted && t.dueDate.toDateString() === todayStr).length;
-  const conversionRate = leadRows.length > 0 ? (qualifiedLeadsCount / leadRows.length) * 100 : 0;
+  const conversionRate = scopedLeads.length > 0 ? (qualifiedLeadsCount / scopedLeads.length) * 100 : 0;
 
   const kpiMetrics: KPIMetric[] = [
     { label: "Total Revenue", value: totalRevenue, change: 0, changeType: "neutral", format: "currency", icon: "💰" },
@@ -77,37 +137,37 @@ export async function getDashboardData() {
   ];
 
   const pipelineData = [
-    { name: "Lead", count: leadRows.length, value: leadRows.length * 50000, color: PIPELINE_COLORS[0], conversionRate: 75 },
-    { name: "Prospect", count: prospectRows.length, value: prospectRows.length * 80000, color: PIPELINE_COLORS[1], conversionRate: 75 },
-    { name: "Deal", count: dealRows.length, value: dealRows.reduce((s, d) => s + Number(d.value), 0), color: PIPELINE_COLORS[2], conversionRate: 75 },
-    { name: "Contract", count: contractRows.length, value: contractRows.reduce((s, c) => s + Number(c.value ?? 0), 0), color: PIPELINE_COLORS[3], conversionRate: 75 },
-    { name: "Customer", count: customerRows.length, value: customerRows.reduce((s, c) => s + Number(c.lifetimeValue ?? 0), 0), color: PIPELINE_COLORS[4] },
+    { name: "Lead", count: scopedLeads.length, value: scopedLeads.length * 50000, color: PIPELINE_COLORS[0], conversionRate: 75 },
+    { name: "Prospect", count: scopedProspects.length, value: scopedProspects.length * 80000, color: PIPELINE_COLORS[1], conversionRate: 75 },
+    { name: "Deal", count: scopedDeals.length, value: scopedDeals.reduce((s, d) => s + Number(d.value), 0), color: PIPELINE_COLORS[2], conversionRate: 75 },
+    { name: "Contract", count: scopedContracts.length, value: scopedContracts.reduce((s, c) => s + Number(c.value ?? 0), 0), color: PIPELINE_COLORS[3], conversionRate: 75 },
+    { name: "Customer", count: scopedCustomers.length, value: scopedCustomers.reduce((s, c) => s + Number(c.lifetimeValue ?? 0), 0), color: PIPELINE_COLORS[4] },
   ];
 
-  const revenueData = lastNMonths(12).map((m) => ({
-    month: m.label,
-    revenue: wonDeals
-      .filter((d) => {
-        const dt = d.updatedAt ?? d.createdAt ?? now;
-        return dt.getFullYear() === m.year && dt.getMonth() === m.month;
-      })
-      .reduce((s, d) => s + Number(d.value), 0),
-  }));
+  const pipelineOverview = {
+    leads: scopedLeads.length,
+    prospects: scopedProspects.length,
+    deals: scopedDeals.length,
+    won: wonDeals.length,
+    lost: lostDeals.length,
+  };
+
+  const revenueData = revenueTrend(wonDeals, from, to, 12);
 
   const sourceCounts: Record<string, number> = {};
-  leadRows.forEach((l) => {
+  scopedLeads.forEach((l) => {
     const src = (l.source ?? "OTHER").toLowerCase();
     sourceCounts[src] = (sourceCounts[src] ?? 0) + 1;
   });
   const leadSources = Object.entries(sourceCounts).map(([source, count]) => ({ source, count }));
 
-  const negotiationCount = dealRows.filter((d) => d.stage === "NEGOTIATION").length;
-  const contractCount = dealRows.filter((d) => d.stage === "CONTRACT").length;
-  const atRiskCount = dealRows.filter((d) => {
+  const negotiationCount = scopedDeals.filter((d) => d.stage === "NEGOTIATION").length;
+  const contractCount = scopedDeals.filter((d) => d.stage === "CONTRACT").length;
+  const atRiskCount = scopedDeals.filter((d) => {
     if (d.stage === "WON" || d.stage === "LOST") return false;
     return !!d.expectedCloseDate && d.expectedCloseDate < now;
   }).length;
-  const stalledCount = dealRows.filter((d) => {
+  const stalledCount = scopedDeals.filter((d) => {
     if (d.stage !== "NEW" && d.stage !== "PROPOSAL") return false;
     const created = d.createdAt ?? now;
     return now.getTime() - created.getTime() > 30 * 86400000;
@@ -162,44 +222,43 @@ export async function getDashboardData() {
     };
   });
 
-  return { kpiMetrics, pipelineData, revenueData, leadSources, dealHealth, tasks: formattedTasks, activities: formattedActivities, teamMembers };
+  return { kpiMetrics, pipelineData, pipelineOverview, revenueData, leadSources, dealHealth, tasks: formattedTasks, activities: formattedActivities, teamMembers };
 }
 
-export async function getAnalyticsData() {
+export async function getAnalyticsData(range?: AnalyticsRange) {
   const { dealRows, leadRows, contractRows, prospectRows, customerRows } = await loadOrgSnapshot();
+  const { from, to } = parseRange(range);
 
-  const wonDeals = dealRows.filter((d) => d.stage === "WON");
-  const lostDeals = dealRows.filter((d) => d.stage === "LOST");
+  const scopedLeads = leadRows.filter((l) => inRange(l.createdAt, from, to));
+  const scopedDeals = dealRows.filter((d) => inRange(d.createdAt, from, to));
+  const scopedContracts = contractRows.filter((c) => inRange(c.createdAt, from, to));
+  const scopedProspects = prospectRows.filter((p) => inRange(p.qualifiedAt, from, to));
+  const scopedCustomers = customerRows.filter((c) => inRange(c.customerSince, from, to));
+
+  const wonDeals = scopedDeals.filter((d) => d.stage === "WON");
+  const lostDeals = scopedDeals.filter((d) => d.stage === "LOST");
   const totalRevenue = wonDeals.reduce((s, d) => s + Number(d.value), 0);
   const avgDealSize = wonDeals.length > 0 ? totalRevenue / wonDeals.length : 0;
-  const conversionRate = leadRows.length > 0 ? (leadRows.filter((l) => l.status === "QUALIFIED").length / leadRows.length) * 100 : 0;
+  const conversionRate = scopedLeads.length > 0 ? (scopedLeads.filter((l) => l.status === "QUALIFIED").length / scopedLeads.length) * 100 : 0;
 
   const velocityDeals = wonDeals.filter((d) => d.createdAt && d.updatedAt);
   const pipelineVelocity = velocityDeals.length > 0
     ? Math.round(velocityDeals.reduce((s, d) => s + (d.updatedAt!.getTime() - d.createdAt!.getTime()) / 86400000, 0) / velocityDeals.length)
     : 0;
 
-  const monthlyRevenue = lastNMonths(6).map((m) => ({
-    month: m.label,
-    value: wonDeals
-      .filter((d) => {
-        const dt = d.updatedAt ?? d.createdAt ?? new Date();
-        return dt.getFullYear() === m.year && dt.getMonth() === m.month;
-      })
-      .reduce((s, d) => s + Number(d.value), 0),
-  }));
+  const monthlyRevenue = revenueTrend(wonDeals, from, to, 6).map((r) => ({ month: r.month, value: r.revenue }));
 
-  const funnelBase = leadRows.length || 1;
+  const funnelBase = scopedLeads.length || 1;
   const funnelStages = [
-    { name: "Leads", count: leadRows.length, color: PIPELINE_COLORS[0], percent: 100 },
-    { name: "Prospects", count: prospectRows.length, color: PIPELINE_COLORS[1], percent: Math.round((prospectRows.length / funnelBase) * 100) },
-    { name: "Deals", count: dealRows.length, color: PIPELINE_COLORS[2], percent: Math.round((dealRows.length / funnelBase) * 100) },
-    { name: "Contracts", count: contractRows.length, color: PIPELINE_COLORS[3], percent: Math.round((contractRows.length / funnelBase) * 100) },
-    { name: "Customers", count: customerRows.length, color: PIPELINE_COLORS[4], percent: Math.round((customerRows.length / funnelBase) * 100) },
+    { name: "Leads", count: scopedLeads.length, color: PIPELINE_COLORS[0], percent: 100 },
+    { name: "Prospects", count: scopedProspects.length, color: PIPELINE_COLORS[1], percent: Math.round((scopedProspects.length / funnelBase) * 100) },
+    { name: "Deals", count: scopedDeals.length, color: PIPELINE_COLORS[2], percent: Math.round((scopedDeals.length / funnelBase) * 100) },
+    { name: "Contracts", count: scopedContracts.length, color: PIPELINE_COLORS[3], percent: Math.round((scopedContracts.length / funnelBase) * 100) },
+    { name: "Customers", count: scopedCustomers.length, color: PIPELINE_COLORS[4], percent: Math.round((scopedCustomers.length / funnelBase) * 100) },
   ];
 
   const sourceCounts: Record<string, number> = {};
-  leadRows.forEach((l) => {
+  scopedLeads.forEach((l) => {
     const src = (l.source ?? "OTHER").toLowerCase();
     sourceCounts[src] = (sourceCounts[src] ?? 0) + 1;
   });
@@ -218,7 +277,7 @@ export async function getAnalyticsData() {
     { key: "LOST" as const, label: "Lost", color: DEAL_STAGES.lost.color },
   ];
   const dealStages = stageDefs.map((s) => {
-    const rows = dealRows.filter((d) => d.stage === s.key);
+    const rows = scopedDeals.filter((d) => d.stage === s.key);
     return { stage: s.label, count: rows.length, value: rows.reduce((sum, d) => sum + Number(d.value), 0), color: s.color };
   });
 

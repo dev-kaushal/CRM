@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   getContacts, getContactReminders, createContact, updateContact,
   updateContactStatus, deleteContact as deleteContactAction, addContactNote, createContactReminder,
@@ -264,6 +265,17 @@ export default function ContactsPage() {
     setEditContact(c);
   };
   const resetForm = () => setForm({ first_name: "", last_name: "", email: "", phone: "", company: "", job_title: "", department: "", status: "ACTIVE", lifetime_value: "", city: "", country: "India", industry: "", website: "", linkedin_url: "", notes: "", tags: "" });
+
+  // Header "Create Contact" quick action (?new=1) auto-opens this page's create drawer
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      resetForm();
+      setIsCreateOpen(true);
+      router.replace("/dashboard/contacts", { scroll: false });
+    }
+  }, [searchParams]);
 
   const industries = [...new Set(contacts.map(c => c.industry).filter(Boolean))];
 

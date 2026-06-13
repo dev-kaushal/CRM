@@ -99,6 +99,7 @@ export const leads = pgTable("leads", {
   source: text("source").default("DIRECT"),
   status: leadStatusEnum("status").default("NEW"),
   ownerId: uuid("owner_id").references(() => users.id),
+  ownerNameCustom: text("owner_name_custom"),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),

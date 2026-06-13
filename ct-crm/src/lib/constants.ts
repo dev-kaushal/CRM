@@ -12,6 +12,7 @@ export const SIDEBAR_ROUTES = [
   { path: "/dashboard/contracts", label: "Contracts", icon: "FileTextIcon", description: "Storage & Tracking" },
   { path: "/dashboard/customers", label: "Customers", icon: "BuildingIcon", description: "Retainer Panel" },
   { path: "/dashboard/tasks", label: "Tasks", icon: "CheckSquareIcon", description: "Schedules Tracker" },
+  { path: "/dashboard/calendar", label: "Calendar", icon: "CalendarIcon", description: "Reminders & Follow-ups" },
   { path: "/dashboard/activities", label: "Activities", icon: "ActivityIcon", description: "Activity Logs" },
   { path: "/dashboard/analytics", label: "Analytics", icon: "BarChartIcon", description: "Reports & Analytics" },
   { path: "/dashboard/team", label: "Team", icon: "UsersIcon", description: "Team & Roles" },

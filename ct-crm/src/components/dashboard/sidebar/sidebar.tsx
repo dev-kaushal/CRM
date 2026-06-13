@@ -1,38 +1,42 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useRef } from "react";
 import Link from "next/link";
 import { useSidebar } from "@/hooks/use-sidebar";
 import { SIDEBAR_ROUTES } from "@/lib/constants";
+import { CalendarIcon as AnimatedCalendarIcon } from "./animated-calendar-icon";
 import {
-  LayoutDashboard,
-  LayoutGrid,
-  Users,
-  Contact,
-  Telescope,
-  HandCoins,
-  Clipboard,
-  UserCheck,
-  CheckCheck,
-  Activity,
-  BarChart,
-  Settings,
-} from "lucide-react";
+  DashboardIcon,
+  LayoutGridIcon,
+  UsersIcon,
+  ContactIcon,
+  TelescopeIcon,
+  HandCoinsIcon,
+  ClipboardIcon,
+  UserCheckIcon,
+  CheckCheckIcon,
+  ActivityIcon,
+  ChartBarIcon,
+  SettingsIcon,
+} from "@animateicons/react/lucide";
 
-// Icon mapping — lightweight lucide-react (no animation overhead)
+// Icon mapping — animated icons (play on nav-item hover via startAnimation/stopAnimation)
 const ICON_MAP: Record<string, any> = {
-  LayoutDashboardIcon: LayoutDashboard,
-  LayoutGridIcon: LayoutGrid,
-  UsersIcon: Users,
-  ContactIcon: Contact,
-  TargetIcon: Telescope,
-  HandshakeIcon: HandCoins,
-  FileTextIcon: Clipboard,
-  BuildingIcon: UserCheck,
-  CheckSquareIcon: CheckCheck,
-  ActivityIcon: Activity,
-  BarChartIcon: BarChart,
-  SettingsIcon: Settings,
+  LayoutDashboardIcon: DashboardIcon,
+  LayoutGridIcon: LayoutGridIcon,
+  UsersIcon: UsersIcon,
+  ContactIcon: ContactIcon,
+  TargetIcon: TelescopeIcon,
+  HandshakeIcon: HandCoinsIcon,
+  FileTextIcon: ClipboardIcon,
+  BuildingIcon: UserCheckIcon,
+  CheckSquareIcon: CheckCheckIcon,
+  ActivityIcon: ActivityIcon,
+  BarChartIcon: ChartBarIcon,
+  SettingsIcon: SettingsIcon,
+  // No animated calendar icon in @animateicons — custom wrapper plays a CSS "flip" on hover (animated-calendar-icon.tsx).
+  CalendarIcon: AnimatedCalendarIcon,
 };
 
 export function Sidebar() {
@@ -79,7 +83,7 @@ export function Sidebar() {
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2.5 space-y-0.5">
         {SIDEBAR_ROUTES.map((route) => {
           const isActive = pathname === route.path;
-          const IconComponent = ICON_MAP[route.icon] || Users;
+          const IconComponent = ICON_MAP[route.icon] || UsersIcon;
 
           return (
             <SidebarNavItem
@@ -129,6 +133,8 @@ function SidebarNavItem({
   collapsed: boolean;
   IconComponent: any;
 }) {
+  const iconRef = useRef<any>(null);
+
   return (
     <Link
       href={href}
@@ -140,6 +146,8 @@ function SidebarNavItem({
         transition: "background 0.15s ease, color 0.15s ease",
       }}
       title={collapsed ? label : undefined}
+      onMouseEnter={() => iconRef.current?.startAnimation()}
+      onMouseLeave={() => iconRef.current?.stopAnimation()}
     >
       {/* Active indicator bar */}
       {isActive && (
@@ -149,8 +157,8 @@ function SidebarNavItem({
         />
       )}
 
-      <div className="flex items-center justify-center w-5 h-5 shrink-0 transition-transform duration-200 ease-out group-hover:scale-125 group-hover:-rotate-6">
-        <IconComponent size={18} strokeWidth={isActive ? 2.5 : 2} />
+      <div className="flex items-center justify-center w-5 h-5 shrink-0">
+        <IconComponent ref={iconRef} size={18} strokeWidth={isActive ? 2.5 : 2} />
       </div>
 
       {!collapsed && (
