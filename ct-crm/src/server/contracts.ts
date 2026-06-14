@@ -39,6 +39,30 @@ export async function getContracts() {
   }));
 }
 
+export async function convertDealToContract(dealId: string) {
+  const dbUser = await getOrCreateDbUser();
+
+  const [deal] = await db
+    .select({ id: deals.id, value: deals.value })
+    .from(deals)
+    .where(and(eq(deals.id, dealId), eq(deals.organizationId, dbUser.organizationId)))
+    .limit(1);
+
+  if (!deal) return null;
+
+  const [contract] = await db
+    .insert(contracts)
+    .values({
+      dealId: deal.id,
+      contractNumber: `CT-${Date.now().toString(36).toUpperCase()}`,
+      status: "DRAFT",
+      value: deal.value,
+    })
+    .returning({ id: contracts.id });
+
+  return { id: contract.id };
+}
+
 export async function updateContractStatus(id: string, status: "DRAFT" | "SENT" | "SIGNED" | "EXPIRED") {
   const dbUser = await getOrCreateDbUser();
 

@@ -134,6 +134,10 @@ export const prospects = pgTable("prospects", {
   notes: text("notes"),
   starred: boolean("starred").default(false),
   tags: text("tags").array().default([]),
+  ownerId: uuid("owner_id").references(() => users.id),
+  ownerNameCustom: text("owner_name_custom"),
+  rating: text("rating"),
+  projectName: text("project_name"),
 });
 
 export const deals = pgTable("deals", {
@@ -150,6 +154,7 @@ export const deals = pgTable("deals", {
   stage: dealStageEnum("stage").default("NEW"),
   probability: integer("probability").default(10),
   ownerId: uuid("owner_id").references(() => users.id),
+  ownerNameCustom: text("owner_name_custom"),
   expectedCloseDate: timestamp("expected_close_date", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
@@ -157,6 +162,12 @@ export const deals = pgTable("deals", {
   notes: text("notes"),
   starred: boolean("starred").default(false),
   tags: text("tags").array().default([]),
+  type: text("type"),
+  nextStep: text("next_step"),
+  campaignSource: text("campaign_source"),
+  contactName: text("contact_name"),
+  contactRole: text("contact_role"),
+  priority: text("priority").default("MEDIUM"),
 });
 
 export const contracts = pgTable("contracts", {
@@ -297,6 +308,16 @@ export const prospectNotes = pgTable("prospect_notes", {
   prospectId: uuid("prospect_id")
     .notNull()
     .references(() => prospects.id),
+  text: text("text").notNull(),
+  author: text("author").default("You"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const dealNotes = pgTable("deal_notes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  dealId: uuid("deal_id")
+    .notNull()
+    .references(() => deals.id),
   text: text("text").notNull(),
   author: text("author").default("You"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),

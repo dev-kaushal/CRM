@@ -228,6 +228,7 @@ export default function LeadsPage() {
   const [valueMax, setValueMax] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [followUpTodayFilter, setFollowUpTodayFilter] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
 
@@ -246,6 +247,7 @@ export default function LeadsPage() {
   const [actionMenuPos, setActionMenuPos] = useState<{ top: number; left: number } | null>(null);
   const [columnEditorOpen, setColumnEditorOpen] = useState(false);
   const [remindersPanelOpen, setRemindersPanelOpen] = useState(false);
+  const [todayPanelOpen, setTodayPanelOpen] = useState(false);
   const [seedingDemo, setSeedingDemo] = useState(false);
   const [visibleCols, setVisibleCols] = useState<string[]>(() => {
     if (typeof window !== "undefined") {
@@ -326,10 +328,10 @@ export default function LeadsPage() {
   // Close any open row action-menu when a modal/drawer opens, so its portal
   // (rendered at z-[9999]) can't bleed above the modal's backdrop (z-50).
   useEffect(() => {
-    if (isCreateOpen || editLead || deleteLead || noteForLead || reminderLead || columnEditorOpen || remindersPanelOpen) {
+    if (isCreateOpen || editLead || deleteLead || noteForLead || reminderLead || columnEditorOpen || remindersPanelOpen || todayPanelOpen) {
       setActionMenuId(null);
     }
-  }, [isCreateOpen, editLead, deleteLead, noteForLead, reminderLead, columnEditorOpen, remindersPanelOpen]);
+  }, [isCreateOpen, editLead, deleteLead, noteForLead, reminderLead, columnEditorOpen, remindersPanelOpen, todayPanelOpen]);
 
   // ─── CRUD ─────────────────────────────────────────────────────────────────
   const handleUpdateStatus = useCallback(async (id: string, next: LeadStatus) => {
@@ -569,6 +571,10 @@ export default function LeadsPage() {
     return hay.join("   ").toLowerCase().includes(q);
   };
 
+  const todayFollowUpLeadIds = new Set(
+    reminders.filter(r => !r.done && new Date(r.datetime).toDateString() === new Date().toDateString()).map(r => r.lead_id)
+  );
+
   const filtered = leads.filter(l => {
     const q = search.trim().toLowerCase();
     if (!matchesSearch(l, q)) return false;
@@ -581,25 +587,27 @@ export default function LeadsPage() {
     if (valueMax && (l.estimated_value || 0) > Number(valueMax)) return false;
     if (dateFrom && new Date(l.created_at) < new Date(dateFrom)) return false;
     if (dateTo && new Date(l.created_at) > new Date(`${dateTo}T23:59:59`)) return false;
+    if (followUpTodayFilter && !todayFollowUpLeadIds.has(l.id)) return false;
     return true;
   });
 
   const activeFilterCount = statusFilters.size + sourceFilters.size + priorityFilters.size + industryFilters.size + tagFilters.size
-    + (valueMin ? 1 : 0) + (valueMax ? 1 : 0) + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
+    + (valueMin ? 1 : 0) + (valueMax ? 1 : 0) + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + (followUpTodayFilter ? 1 : 0);
 
   const clearAllFilters = () => {
     setStatusFilters(new Set()); setSourceFilters(new Set()); setPriorityFilters(new Set());
     setIndustryFilters(new Set()); setTagFilters(new Set());
-    setValueMin(""); setValueMax(""); setDateFrom(""); setDateTo("");
+    setValueMin(""); setValueMax(""); setDateFrom(""); setDateTo(""); setFollowUpTodayFilter(false);
   };
 
   // ─── Pagination ─────────────────────────────────────────────────────────
-  useEffect(() => { setPage(1); }, [search, searchCols, statusFilters, sourceFilters, priorityFilters, industryFilters, tagFilters, valueMin, valueMax, dateFrom, dateTo, pageSize]);
+  useEffect(() => { setPage(1); }, [search, searchCols, statusFilters, sourceFilters, priorityFilters, industryFilters, tagFilters, valueMin, valueMax, dateFrom, dateTo, followUpTodayFilter, pageSize]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pagedStart = (page - 1) * pageSize;
   const paged = filtered.slice(pagedStart, pagedStart + pageSize);
 
   const activeReminders = reminders.filter(r => !r.done);
+  const todayFollowUps = activeReminders.filter(r => new Date(r.datetime).toDateString() === new Date().toDateString());
 
   // ─── KPI summary cards + Reports (#11, #13, #24) ───────────────────────────
   const rangeBounds = getDateRangeBounds(dateRange);
@@ -634,6 +642,11 @@ export default function LeadsPage() {
           {activeReminders.length > 0 && (
             <button onClick={() => setRemindersPanelOpen(true)} className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-semibold border hover:opacity-80" style={{ background: "rgba(234,179,8,.1)", borderColor: "rgba(234,179,8,.3)", color: "#eab308", transition: "opacity .15s" }}>
               <Bell size={13} />{activeReminders.length} reminder{activeReminders.length > 1 ? "s" : ""}
+            </button>
+          )}
+          {todayFollowUps.length > 0 && (
+            <button onClick={() => setTodayPanelOpen(true)} className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-xs font-semibold border hover:opacity-80" style={{ background: "rgba(168,85,247,.1)", borderColor: "rgba(168,85,247,.3)", color: "#a855f7", transition: "opacity .15s" }}>
+              <CalendarDays size={13} />{todayFollowUps.length} follow-up{todayFollowUps.length > 1 ? "s" : ""} today
             </button>
           )}
           {!loading && leads.length < 5 && (
@@ -741,6 +754,13 @@ export default function LeadsPage() {
                         <span className="text-muted-foreground text-xs">to</span>
                         <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="ct-fi" style={{ height: "2rem", fontSize: "0.75rem" }} />
                       </div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1.5">Follow-ups</p>
+                      <label className="flex items-center gap-2 px-1 py-1 text-xs cursor-pointer rounded hover:bg-accent">
+                        <input type="checkbox" checked={followUpTodayFilter} onChange={e => setFollowUpTodayFilter(e.target.checked)} />
+                        <CalendarDays size={12} style={{ color: "#a855f7" }} />Due today
+                      </label>
                     </div>
                     <div className="flex gap-2 pt-1">
                       <button type="button" onClick={clearAllFilters} className="flex-1 h-8 rounded-lg border text-xs font-semibold hover:opacity-75" style={{ borderColor: "var(--card-border)", color: "var(--text-color)" }}>Clear all</button>
@@ -1186,6 +1206,41 @@ export default function LeadsPage() {
                         <button onClick={() => { setRemindersPanelOpen(false); router.push(`/dashboard/leads/${r.lead_id}`); }} className="text-[11px] hover:underline" style={{ color: "var(--graph-to)" }}>{r.lead_name}</button>
                         <p className="text-[10px] mt-0.5 font-semibold" style={{ color: isOverdue ? "#ef4444" : isToday ? "#eab308" : "var(--muted-foreground)" }}>
                           {due.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}{isOverdue ? " · Overdue" : isToday ? " · Today" : ""}
+                        </p>
+                        {r.note && <p className="text-[10px] text-muted-foreground mt-0.5">{r.note}</p>}
+                      </div>
+                      <button onClick={() => handleToggleReminder(r.id)} className="h-7 px-2.5 rounded-lg border text-[10px] font-semibold hover:opacity-75 shrink-0" style={{ borderColor: "var(--card-border)", color: "var(--text-color)" }}>Done</button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TODAY'S FOLLOW-UPS PANEL ── */}
+      {todayPanelOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setTodayPanelOpen(false)} />
+          <div className="relative w-full max-w-md max-h-[80vh] rounded-2xl p-6 shadow-2xl t-modal-pop flex flex-col" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
+            <div className="flex items-center justify-between mb-4 shrink-0">
+              <h3 className="text-sm font-bold flex items-center gap-1.5" style={{ color: "var(--text-color)" }}><CalendarDays size={14} />Today&apos;s Follow-ups ({todayFollowUps.length})</h3>
+              <button onClick={() => setTodayPanelOpen(false)} className="hover:opacity-70"><X size={15} /></button>
+            </div>
+            <div className="space-y-2 overflow-y-auto pr-1">
+              {todayFollowUps.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-6">No follow-ups due today.</p>
+              ) : (
+                [...todayFollowUps].sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime()).map(r => {
+                  const due = new Date(r.datetime);
+                  return (
+                    <div key={r.id} className="flex items-start justify-between gap-3 p-3 rounded-xl border" style={{ borderColor: "var(--card-border)" }}>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold" style={{ color: "var(--text-color)" }}>{r.title}</p>
+                        <button onClick={() => { setTodayPanelOpen(false); router.push(`/dashboard/leads/${r.lead_id}`); }} className="text-[11px] hover:underline" style={{ color: "var(--graph-to)" }}>{r.lead_name}</button>
+                        <p className="text-[10px] mt-0.5 font-semibold" style={{ color: "#a855f7" }}>
+                          {due.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })} · Today
                         </p>
                         {r.note && <p className="text-[10px] text-muted-foreground mt-0.5">{r.note}</p>}
                       </div>

@@ -10,9 +10,10 @@ export async function getAllReminders(rangeStart?: Date, rangeEnd?: Date) {
   const dbUser = await getOrCreateDbUser();
   const orgId = dbUser.organizationId;
 
-  const [leadRows, prospectRows, customerRows, contactRows] = await Promise.all([
+  const [leadRows, prospectRows, dealRows, customerRows, contactRows] = await Promise.all([
     db.select({ id: leads.id }).from(leads).where(eq(leads.organizationId, orgId)),
     db.select({ id: prospects.id }).from(prospects).innerJoin(leads, eq(prospects.leadId, leads.id)).where(eq(leads.organizationId, orgId)),
+    db.select({ id: deals.id }).from(deals).where(eq(deals.organizationId, orgId)),
     db.select({ id: customers.id }).from(customers).where(eq(customers.organizationId, orgId)),
     db.select({ id: contacts.id }).from(contacts).where(eq(contacts.organizationId, orgId)),
   ]);
@@ -20,6 +21,7 @@ export async function getAllReminders(rangeStart?: Date, rangeEnd?: Date) {
   const idsByType: Record<string, string[]> = {
     lead: leadRows.map(r => r.id),
     prospect: prospectRows.map(r => r.id),
+    deal: dealRows.map(r => r.id),
     customer: customerRows.map(r => r.id),
     contact: contactRows.map(r => r.id),
   };
@@ -47,6 +49,33 @@ export async function getAllReminders(rangeStart?: Date, rangeEnd?: Date) {
     note: r.note ?? undefined,
     done: r.done ?? false,
   }));
+}
+
+/** Entity-agnostic reminder creation (mirrors createLeadReminder/createProspectReminder),
+ * used by the "Add reminder for this" option when logging activities against any
+ * pipeline entity (lead/prospect/deal/contract/customer). */
+export async function createReminder(
+  entityType: string,
+  entityId: string,
+  entityName: string,
+  input: { title: string; type: string; datetime: string; note?: string }
+) {
+  const dbUser = await getOrCreateDbUser();
+  const [row] = await db
+    .insert(reminders)
+    .values({
+      entityType,
+      entityId,
+      entityName,
+      title: input.title,
+      type: input.type,
+      datetime: new Date(input.datetime),
+      note: input.note,
+      done: false,
+      createdBy: dbUser.id,
+    })
+    .returning({ id: reminders.id });
+  return row;
 }
 
 export async function toggleReminderDone(id: string, done: boolean) {

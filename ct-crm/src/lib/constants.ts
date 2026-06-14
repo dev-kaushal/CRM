@@ -5,14 +5,14 @@
 // --- Sidebar Navigation Routes ---
 export const SIDEBAR_ROUTES = [
   { path: "/dashboard", label: "Dashboard", icon: "LayoutDashboardIcon", description: "Core Terminal" },
+  { path: "/dashboard/calendar", label: "Calendar", icon: "CalendarIcon", description: "Reminders & Follow-ups" },
   { path: "/dashboard/leads", label: "Leads", icon: "UsersIcon", description: "Intake Management" },
-  { path: "/dashboard/contacts", label: "Contacts", icon: "ContactIcon", description: "Contact Profiles" },
   { path: "/dashboard/prospects", label: "Prospects", icon: "TargetIcon", description: "BANT Qualification" },
   { path: "/dashboard/deals", label: "Deals", icon: "HandshakeIcon", description: "Pipeline Boards" },
   { path: "/dashboard/contracts", label: "Contracts", icon: "FileTextIcon", description: "Storage & Tracking" },
   { path: "/dashboard/customers", label: "Customers", icon: "BuildingIcon", description: "Retainer Panel" },
+  { path: "/dashboard/contacts", label: "Contacts", icon: "ContactIcon", description: "Contact Profiles" },
   { path: "/dashboard/tasks", label: "Tasks", icon: "CheckSquareIcon", description: "Schedules Tracker" },
-  { path: "/dashboard/calendar", label: "Calendar", icon: "CalendarIcon", description: "Reminders & Follow-ups" },
   { path: "/dashboard/activities", label: "Activities", icon: "ActivityIcon", description: "Activity Logs" },
   { path: "/dashboard/analytics", label: "Analytics", icon: "BarChartIcon", description: "Reports & Analytics" },
   { path: "/dashboard/team", label: "Team", icon: "UsersIcon", description: "Team & Roles" },
@@ -47,6 +47,24 @@ export const DEAL_STAGES = {
   won: { label: "Won", color: "#10b981", probability: 100 },
   lost: { label: "Lost", color: "#ef4444", probability: 0 },
 } as const;
+
+// --- Deal Types (Zoho "Type" picklist) ---
+export const DEAL_TYPES = [
+  "New Business",
+  "Existing Business - Upsell",
+  "Existing Business - Renewal",
+  "Existing Business - Replacement",
+] as const;
+
+// --- Deal Contact Roles (Zoho "Contact Role") ---
+export const CONTACT_ROLES = [
+  "Decision Maker",
+  "Influencer",
+  "Champion",
+  "Evaluator",
+  "End User",
+  "Other",
+] as const;
 
 // --- Contract Statuses ---
 export const CONTRACT_STATUSES = {

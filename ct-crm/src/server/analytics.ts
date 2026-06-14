@@ -87,7 +87,7 @@ async function loadOrgSnapshot() {
       .innerJoin(deals, eq(contracts.dealId, deals.id))
       .where(eq(deals.organizationId, orgId)),
     db
-      .select({ id: prospects.id, qualifiedAt: prospects.qualifiedAt })
+      .select({ id: prospects.id, qualifiedAt: prospects.qualifiedAt, status: prospects.status })
       .from(prospects)
       .innerJoin(leads, eq(prospects.leadId, leads.id))
       .where(eq(leads.organizationId, orgId)),
@@ -150,6 +150,23 @@ export async function getDashboardData(range?: AnalyticsRange) {
     deals: scopedDeals.length,
     won: wonDeals.length,
     lost: lostDeals.length,
+  };
+
+  const prospectsByStage = {
+    qualified: scopedProspects.filter((p) => p.status === "QUALIFIED").length,
+    proposalSent: scopedProspects.filter((p) => p.status === "PROPOSAL_SENT").length,
+    inNegotiation: scopedProspects.filter((p) => p.status === "IN_NEGOTIATION").length,
+    dealOpened: scopedProspects.filter((p) => p.status === "DEAL_OPENED").length,
+    lost: scopedProspects.filter((p) => p.status === "LOST").length,
+  };
+
+  const dealsByStage = {
+    new: scopedDeals.filter((d) => d.stage === "NEW").length,
+    proposal: scopedDeals.filter((d) => d.stage === "PROPOSAL").length,
+    negotiation: scopedDeals.filter((d) => d.stage === "NEGOTIATION").length,
+    contract: scopedDeals.filter((d) => d.stage === "CONTRACT").length,
+    won: scopedDeals.filter((d) => d.stage === "WON").length,
+    lost: scopedDeals.filter((d) => d.stage === "LOST").length,
   };
 
   const revenueData = revenueTrend(wonDeals, from, to, 12);
@@ -222,7 +239,7 @@ export async function getDashboardData(range?: AnalyticsRange) {
     };
   });
 
-  return { kpiMetrics, pipelineData, pipelineOverview, revenueData, leadSources, dealHealth, tasks: formattedTasks, activities: formattedActivities, teamMembers };
+  return { kpiMetrics, pipelineData, pipelineOverview, prospectsByStage, dealsByStage, revenueData, leadSources, dealHealth, tasks: formattedTasks, activities: formattedActivities, teamMembers };
 }
 
 export async function getAnalyticsData(range?: AnalyticsRange) {

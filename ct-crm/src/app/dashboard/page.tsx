@@ -12,7 +12,7 @@ import { DealHealth } from "@/components/dashboard/widgets/deal-health";
 import { TaskCenter } from "@/components/dashboard/widgets/task-center";
 import { ActivityFeed } from "@/components/dashboard/widgets/activity-feed";
 import { TeamPerformance } from "@/components/dashboard/widgets/team-performance";
-import { PipelineOverview, type PipelineOverviewData } from "@/components/dashboard/widgets/pipeline-overview";
+import { PipelineOverview, type PipelineOverviewData, ProspectsByStage, type ProspectsByStageData, DealsByStage, type DealsByStageData } from "@/components/dashboard/widgets/pipeline-overview";
 import { TodaysReminders, type ReminderItem } from "@/components/dashboard/widgets/todays-reminders";
 import { DateRangePicker, getDateRangeBounds, type DateRangeValue } from "@/components/dashboard/date-range-picker";
 import type { KPIMetric, Activity, Task } from "@/lib/types";
@@ -137,6 +137,10 @@ const DEMO_DEAL_HEALTH = {
 
 const DEMO_PIPELINE_OVERVIEW: PipelineOverviewData = { leads: 48, prospects: 31, deals: 24, won: 18, lost: 6 };
 
+const DEMO_PROSPECTS_BY_STAGE: ProspectsByStageData = { qualified: 12, proposalSent: 8, inNegotiation: 6, dealOpened: 4, lost: 1 };
+
+const DEMO_DEALS_BY_STAGE: DealsByStageData = { new: 6, proposal: 5, negotiation: 4, contract: 3, won: 18, lost: 6 };
+
 const now = new Date().toISOString();
 const yesterday = new Date(Date.now() - 86400000).toISOString();
 const twoDaysAgo = new Date(Date.now() - 172800000).toISOString();
@@ -179,6 +183,8 @@ export default function DashboardPage() {
   const [kpiMetrics, setKpiMetrics] = useState<KPIMetric[]>(DEMO_KPI);
   const [pipelineData, setPipelineData] = useState<any[]>(DEMO_PIPELINE);
   const [pipelineOverview, setPipelineOverview] = useState<PipelineOverviewData>(DEMO_PIPELINE_OVERVIEW);
+  const [prospectsByStage, setProspectsByStage] = useState<ProspectsByStageData>(DEMO_PROSPECTS_BY_STAGE);
+  const [dealsByStage, setDealsByStage] = useState<DealsByStageData>(DEMO_DEALS_BY_STAGE);
   const [revenueData, setRevenueData] = useState<any[]>(DEMO_REVENUE);
   const [leadSources, setLeadSources] = useState<any[]>(DEMO_LEAD_SOURCES);
   const [dealHealth, setDealHealth] = useState<any>(DEMO_DEAL_HEALTH);
@@ -206,6 +212,8 @@ export default function DashboardPage() {
         setKpiMetrics(data.kpiMetrics);
         setPipelineData(data.pipelineData);
         setPipelineOverview(data.pipelineOverview);
+        setProspectsByStage(data.prospectsByStage);
+        setDealsByStage(data.dealsByStage);
         setRevenueData(data.revenueData);
         setLeadSources(data.leadSources.length > 0 ? data.leadSources : DEMO_LEAD_SOURCES);
         setDealHealth(data.dealHealth);
@@ -218,6 +226,8 @@ export default function DashboardPage() {
         setKpiMetrics(DEMO_KPI);
         setPipelineData(DEMO_PIPELINE);
         setPipelineOverview(DEMO_PIPELINE_OVERVIEW);
+        setProspectsByStage(DEMO_PROSPECTS_BY_STAGE);
+        setDealsByStage(DEMO_DEALS_BY_STAGE);
         setLeadSources(DEMO_LEAD_SOURCES);
         setDealHealth(DEMO_DEAL_HEALTH);
         setTasks(DEMO_TASKS);
@@ -314,6 +324,12 @@ export default function DashboardPage() {
 
       {/* Pipeline Overview — Leads / Prospects / Deals / Won / Lost (#12, #23) */}
       <PipelineOverview data={pipelineOverview} loading={dataLoading} />
+
+      {/* Prospects by Stage — Qualified / Proposal / Negotiation / Deal Opened / Lost (#29) */}
+      <ProspectsByStage data={prospectsByStage} loading={dataLoading} />
+
+      {/* Deals by Stage — New / Proposal / Negotiation / Contract / Won / Lost */}
+      <DealsByStage data={dealsByStage} loading={dataLoading} />
 
       {/* ROW 1 — KPI Cards */}
       <div className="grid grid-cols-4 gap-4">

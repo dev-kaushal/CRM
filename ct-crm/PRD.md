@@ -66,3 +66,47 @@ See `DEVPLAN.md` for the phased task breakdown and `CONTEXT.md` for architecture
 - Dashboard shows the Pipeline Overview strip and Today's Reminders widget, both range-aware where applicable.
 - Calendar page renders a month grid with per-day reminder indicators and a working day-detail drawer.
 - "Load Demo Data" inserts 50 leads with varied data and disappears once the org has 5+ leads.
+
+## Phase 24–30 Addendum — Prospects 360° / Conversion / Cadence
+### Goals
+1. Bring the Prospects page to the same tier as the Leads page: sticky-column table with pagination, column-scoped search, multi-criteria filters (incl. Budget and Qualified-date ranges), Table/Kanban/Grid/Reports views (Kanban drag-and-drop across the 5 stages), a range-aware KPI row, and a "Load Demo Data" action (30 paired lead+prospect rows).
+2. Add a standalone **"Add New Prospect"** full-page form and a full-page **Prospect Detail (360°)** view (`/dashboard/prospects/[id]`), mirroring the Lead Detail page: pipeline breadcrumb (Lead → Prospect → Deal → Contract → Customer), quick-action logging, follow-ups, activity timeline, notes, reminders, and **Owner assignment** (incl. free-text custom owner, same pattern as Leads).
+3. Add Zoho-style CRM fields to Prospects — **Rating** (Hot/Warm/Cold) and **Project Name** (opportunity name) — surfaced across the list, filters, forms, and detail page.
+4. Add a **"Convert Prospect → Deal"** flow: `convertProspectToDeal()` creates a `deals` row linked to the existing lead/prospect (no duplicate lead), sets the prospect's status to `DEAL_OPENED`, and supports a Tags input — the first UI surface for `deals.tags`.
+5. Add two shared, read-only "engagement" widgets — a **Cadence Board** (5-column follow-up sequence visualization) and a **Follow-up Checklist** (date-pill task list) — to both Lead and Prospect detail pages, backed by deterministic dummy data (no new tables).
+6. Add a **"Related To"** selector to the Log Call/Email/Meeting form on both detail pages, letting an activity be logged against a linked Deal/Contract/Customer (or, for Prospects, the originating Lead) instead of the current entity, plus an optional "Add reminder for this" → entity-agnostic `createReminder()` that surfaces on the Calendar and notifications bell.
+7. Extend the Dashboard with a **"Prospects by Stage"** breakdown (Qualified/Proposal Sent/Negotiation/Deal Opened/Lost counts), range-aware, alongside the existing Pipeline Overview strip.
+
+### Non-Goals
+- No deal detail page — "Convert to Deal" routes to `/dashboard/deals` (list) since no `/dashboard/deals/[id]` route exists yet.
+- Cadence Board and Follow-up Checklist are read-only visualizations with deterministic per-entity dummy data — no new DB tables, no editing.
+- No change to the `prospects.leadId` 1:1 pairing model — "Add New Prospect" creates a real paired `leads` row (same behavior as the existing create flow), not a schema relationship change.
+
+### Success Criteria
+- `npx tsc --noEmit` clean across the whole project; `/dashboard`, `/dashboard/prospects`, `/dashboard/prospects/new`, `/dashboard/prospects/[id]`, `/dashboard/leads/[id]`, `/dashboard/calendar` all redirect to `/login` when unauthenticated (307).
+- Prospects page: table/Kanban/Grid/Reports views, pagination, column-scoped search/filters (incl. Rating, Budget, Qualified-date), KPI cards, column editor persistence, and "Load Demo Data" all work and respect the selected date range.
+- `/dashboard/prospects/new` creates a real lead+prospect pair and routes to the new detail page; the detail page renders the pipeline breadcrumb, Owner/Rating/Project fields, quick-actions, Cadence/Checklist sections, follow-ups/notes/reminders, and "Related To" activity logging.
+- "Convert to Deal" creates a `deals` row (with tags) linked to the prospect, sets its status to `DEAL_OPENED`, and routes to `/dashboard/deals`.
+- Dashboard's "Prospects by Stage" card shows counts matching `prospects.status` and updates with the date-range picker.
+
+## Phase 31–36 Addendum — Deals 360° / Zoho-HubSpot Parity / Pipeline Bar
+### Goals
+1. Bring the Deals page to the same tier as Leads/Prospects: sticky-column table with pagination, column-scoped search, multi-criteria filters (incl. Value and Expected-Close-date ranges), Table/Kanban/Grid/Reports views (Kanban drag-and-drop across the 6 `deal_stage` values), a range-aware KPI row (Total Pipeline Value, Weighted Forecast, Open Deals, Won This Period, Avg Deal Size, Closing This Week), and a "Load Demo Data" action (`seedDealsFromProspects`).
+2. Add Zoho/HubSpot-standard Deal fields — `type` (Deal Type), `nextStep`, `campaignSource`, `contactName`, `contactRole`, and `priority` (LOW/MEDIUM/HIGH/URGENT) — surfaced across the list, filters, forms, and detail page.
+3. Add a full-page **Deal Detail (360°)** view (`/dashboard/deals/[id]`), mirroring the Prospect Detail page: pipeline breadcrumb (Lead → Prospect → Deal → Contract → Customer), a 4-card commercial-terms summary (Value/Probability/Expected Close/Owner) in place of the BANT row, quick-action logging, follow-ups, activity timeline, notes (`dealNotes`), reminders, Cadence Board, Follow-up Checklist, and Owner assignment (incl. free-text custom owner).
+4. Surface Lead → Prospect → Deal data continuity on the detail page: read-only "Originating Lead" (contact/email/website/employees) and, when the deal originated from a prospect, "Originating Prospect (BANT)" (budget/authority/timeline/location/industry/rating/need) panels.
+5. Add a **Zoho-style stage pipeline bar** (`DealStagePipeline`) — `NEW → PROPOSAL → NEGOTIATION → CONTRACT → WON` with a separate "Lost" indicator, each segment clickable to call `updateDealStage` — plus "Mark Won"/"Mark Lost" quick actions.
+6. Add a **"Generate Contract" / "View Contract"** flow: `convertDealToContract(dealId)` creates a `DRAFT` `contracts` row for a Won deal with no existing contract; once a contract exists, the action becomes "View Contract" (→ `/dashboard/contracts`).
+7. Extend the Dashboard with a **"Deals by Stage"** breakdown (New/Proposal/Negotiation/Contract/Won/Lost counts), range-aware, alongside the existing Pipeline Overview / Prospects by Stage strips; extend the Calendar's cross-entity reminders (`getAllReminders`) to include `"deal"`-type reminders.
+
+### Non-Goals
+- No `deal_stage` enum migration — `CONTRACT`/`WON`/`LOST` remain as-is; the pipeline bar visualizes the 5 forward stages + a separate Lost indicator without changing the schema.
+- No Contract detail page — "View Contract" routes to `/dashboard/contracts` (list).
+- No dedicated `createDealReminder` wrapper — Deal reminders use the existing entity-agnostic `createReminder("deal", ...)`/`getDealReminders`.
+
+### Success Criteria
+- `npx tsc --noEmit` clean across the whole project; `/dashboard`, `/dashboard/deals`, `/dashboard/deals/[id]`, `/dashboard/prospects/[id]`, `/dashboard/calendar` all redirect to `/login` when unauthenticated (307).
+- Deals page: Table/Kanban/Grid/Reports views, pagination, column-scoped search/filters (incl. Priority, Value, Expected-Close-date), KPI cards, column editor persistence, and "Load Demo Data" all work and respect the selected date range.
+- `/dashboard/deals/[id]` renders the pipeline breadcrumb, commercial-terms summary, stage pipeline bar (incl. Mark Won/Lost), Originating Lead/Prospect panels (when applicable), quick-actions, Cadence/Checklist sections, and follow-ups/notes/reminders.
+- Marking a deal "Won" and clicking "Generate Contract" creates a `DRAFT` contracts row and switches the action to "View Contract".
+- Dashboard's "Deals by Stage" card shows counts matching `deals.stage` and updates with the date-range picker; deal-detail reminders appear on `/dashboard/calendar`.

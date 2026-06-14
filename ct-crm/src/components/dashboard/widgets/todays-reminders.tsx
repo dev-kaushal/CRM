@@ -26,13 +26,15 @@ export const TYPE_ICONS: Record<string, typeof Phone> = {
 export const ENTITY_LABELS: Record<string, string> = {
   lead: "Lead",
   prospect: "Prospect",
+  deal: "Deal",
   customer: "Customer",
   contact: "Contact",
 };
 
 export function entityHref(type: string, id: string) {
   if (type === "lead") return `/dashboard/leads/${id}`;
-  if (type === "prospect") return "/dashboard/prospects";
+  if (type === "prospect") return `/dashboard/prospects/${id}`;
+  if (type === "deal") return `/dashboard/deals/${id}`;
   if (type === "customer") return "/dashboard/customers";
   return "/dashboard/contacts";
 }

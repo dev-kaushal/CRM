@@ -3,75 +3,100 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import LeadDetailLoading from "./loading";
+import DealDetailLoading from "./loading";
 import {
-  getLeadById,
-  updateLead,
-  updateLeadStatus,
-  deleteLead as deleteLeadAction,
-  addLeadNote,
-  getLeadPipelineStatus,
-  getLeadFollowUps,
-  createLeadFollowUp,
-  toggleLeadFollowUpDone,
-  deleteLeadFollowUp,
-  getLeadReminders,
-  createLeadReminder,
-  toggleLeadReminderDone,
-} from "@/server/leads";
+  getDealById,
+  updateDeal,
+  updateDealStage,
+  toggleDealStar,
+  deleteDeal as deleteDealAction,
+  addDealNote,
+  getDealPipelineStatus,
+  getDealFollowUps,
+  createDealFollowUp,
+  toggleDealFollowUpDone,
+  deleteDealFollowUp,
+  getDealReminders,
+} from "@/server/deals";
+import { toggleReminderDone, createReminder } from "@/server/calendar";
 import { getTeamMembers } from "@/server/users";
 import { getActivitiesForEntity, createActivity } from "@/server/activities";
-import { createReminder } from "@/server/calendar";
 import { buildDemoCadence, CadenceBoard } from "@/components/dashboard/widgets/cadence-board";
 import { buildDemoChecklist, FollowupChecklist } from "@/components/dashboard/widgets/followup-checklist";
-import { convertLeadToProspect } from "@/server/prospects";
-import { validateLeadForm, type LeadFormValues } from "@/lib/validations/lead";
-import { validateProspectConversion, type ProspectConversionValues } from "@/lib/validations/prospect-conversion";
+import { DealStagePipeline } from "@/components/dashboard/widgets/deal-stage-bar";
+import { convertDealToContract } from "@/server/contracts";
 import { validateFollowUp, type FollowUpValues } from "@/lib/validations/follow-up";
 import { validateReminder, type ReminderValues } from "@/lib/validations/reminder";
 import { toast } from "sonner";
+import { DEAL_STAGES, DEAL_TYPES, CONTACT_ROLES, TASK_PRIORITIES } from "@/lib/constants";
 import {
-  ArrowLeft, Star, StarOff, Pencil, Trash2, Phone, Mail, Calendar, Clock,
-  Building, DollarSign, Tag, MapPin, Globe, Linkedin, MessageSquare,
-  CheckCircle2, Plus, X, ChevronRight, Briefcase, Hash, Users, Save,
-  PhoneCall, Video, StickyNote, AlertTriangle, ArrowRightCircle, Bell,
+  ArrowLeft, Star, StarOff, Pencil, Trash2, Mail, Calendar, Clock,
+  Building, DollarSign, Tag, Hash, Briefcase, Save,
+  CheckCircle2, AlertTriangle, UserCheck, Plus, X, ChevronRight,
+  MessageSquare, PhoneCall, Video, StickyNote, ArrowRightCircle, Bell,
+  TrendingUp, CalendarClock, FileText, MapPin, Award, Trophy, XCircle,
 } from "lucide-react";
 
-// ─── Types (mirrors src/app/dashboard/leads/page.tsx) ─────────────────────────
-type LeadStatus = "NEW" | "CONTACTED" | "INTERESTED" | "QUALIFIED" | "REJECTED";
+// ─── Types ──────────────────────────────────────────────────────────────────
+type DealStage = "NEW" | "PROPOSAL" | "NEGOTIATION" | "CONTRACT" | "WON" | "LOST";
 
-interface LeadNote {
+interface DNote {
   id: string;
   text: string;
   created_at: string;
   author?: string;
 }
 
-interface Lead {
-  id: string;
+interface DealLead {
   first_name: string;
   last_name: string;
-  email: string;
-  phone?: string;
   company?: string;
-  source?: string;
-  status: LeadStatus;
-  estimated_value?: number;
+  email?: string;
+  phone?: string;
+  website?: string;
+  linkedin?: string;
+  employee_count?: string;
+  priority?: string;
+}
+
+interface DealProspect {
+  budget: number;
+  authority: boolean;
+  need?: string;
+  timeline?: string;
+  rating?: string;
+  project_name?: string;
+  industry?: string;
+  city?: string;
+}
+
+interface Deal {
+  id: string;
+  lead_id: string;
+  prospect_id?: string;
+  title: string;
+  value: number;
+  stage: DealStage;
+  probability: number;
+  expected_close_date?: string;
+  company_name?: string;
   notes?: string;
+  type?: string;
+  next_step?: string;
+  campaign_source?: string;
+  contact_name?: string;
+  contact_role?: string;
+  priority: string;
+  tags: string[];
+  starred: boolean;
   created_at: string;
   owner_id?: string;
   owner_name?: string;
   owner_name_custom?: string;
-  website?: string;
-  linkedin?: string;
-  city?: string;
-  country?: string;
-  industry?: string;
-  employee_count?: string;
-  priority?: "low" | "medium" | "high" | "urgent";
-  starred?: boolean;
-  tags?: string[];
-  lead_notes?: LeadNote[];
+  expected_revenue: number;
+  lead: DealLead;
+  prospect?: DealProspect;
+  dnotes: DNote[];
 }
 
 interface TeamMember {
@@ -81,8 +106,8 @@ interface TeamMember {
 
 interface Reminder {
   id: string;
-  lead_id: string;
-  lead_name: string;
+  p_id: string;
+  p_name: string;
   title: string;
   type: "call" | "email" | "meeting" | "follow_up";
   datetime: string;
@@ -113,19 +138,49 @@ interface ActivityItem {
 }
 
 interface PipelineStatus {
-  stage: "lead" | "prospect" | "deal" | "contract" | "customer";
+  stage: "deal" | "contract" | "customer";
+  lead_id?: string;
   prospect_id?: string;
-  deal_id?: string;
   contract_id?: string;
   customer_id?: string;
 }
 
-// ─── Constants ──────────────────────────────────────────────────────────────
-// "QUALIFIED" is intentionally excluded — that transition is represented by the
-// Convert-to-Prospect flow below, not a lead status.
-const STAGES: LeadStatus[] = ["NEW", "CONTACTED", "INTERESTED", "REJECTED"];
+// ─── Form values ────────────────────────────────────────────────────────────
+interface DealFormValues {
+  title: string;
+  company_name: string;
+  value: string;
+  stage: DealStage;
+  probability: string;
+  expected_close_date: string;
+  type: string;
+  next_step: string;
+  contact_name: string;
+  contact_role: string;
+  campaign_source: string;
+  priority: string;
+  owner_id: string;
+  owner_name_custom: string;
+  tags: string;
+  notes: string;
+}
 
-const PIPELINE_STAGES: { key: PipelineStatus["stage"]; label: string }[] = [
+function validateDealForm(form: DealFormValues) {
+  const errors: Record<string, string> = {};
+  if (!form.title.trim()) errors.title = "Deal title is required";
+  if (!form.value.trim() || isNaN(Number(form.value)) || Number(form.value) < 0) errors.value = "Enter a valid value";
+  if (form.probability.trim() && (isNaN(Number(form.probability)) || Number(form.probability) < 0 || Number(form.probability) > 100)) errors.probability = "Must be between 0 and 100";
+  return { valid: Object.keys(errors).length === 0, errors };
+}
+
+// ─── Constants ──────────────────────────────────────────────────────────────
+const STAGES: DealStage[] = ["NEW", "PROPOSAL", "NEGOTIATION", "CONTRACT", "WON", "LOST"];
+const PRIORITY_OPTIONS = ["LOW", "MEDIUM", "HIGH", "URGENT"];
+const CAMPAIGN_SOURCE_OPTIONS = [
+  "Website", "Trade Show", "Webinar", "Cold Call", "Partner Referral", "Email Campaign", "Social Media", "Content Syndication",
+];
+
+const PIPELINE_STAGES: { key: "lead" | "prospect" | PipelineStatus["stage"]; label: string }[] = [
   { key: "lead", label: "Lead" },
   { key: "prospect", label: "Prospect" },
   { key: "deal", label: "Deal" },
@@ -141,25 +196,39 @@ const TYPE_OPTIONS: { value: FollowUp["type"]; label: string }[] = [
 ];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-function getStatusColor(s: LeadStatus) {
-  const map: Record<LeadStatus, { bg: string; text: string; border: string }> = {
-    NEW: { bg: "rgba(59,130,246,.15)", text: "#3b82f6", border: "rgba(59,130,246,.3)" },
-    CONTACTED: { bg: "rgba(249,115,22,.15)", text: "#f97316", border: "rgba(249,115,22,.3)" },
-    INTERESTED: { bg: "rgba(234,179,8,.15)", text: "#eab308", border: "rgba(234,179,8,.3)" },
-    QUALIFIED: { bg: "rgba(16,185,129,.15)", text: "#10b981", border: "rgba(16,185,129,.3)" },
-    REJECTED: { bg: "rgba(239,68,68,.15)", text: "#ef4444", border: "rgba(239,68,68,.3)" },
+function getStageStyle(stage: DealStage) {
+  const map: Record<DealStage, { bg: string; text: string; border: string; key: keyof typeof DEAL_STAGES }> = {
+    NEW: { bg: "rgba(59,130,246,.15)", text: "#3b82f6", border: "rgba(59,130,246,.3)", key: "new" },
+    PROPOSAL: { bg: "rgba(249,115,22,.15)", text: "#f97316", border: "rgba(249,115,22,.3)", key: "proposal" },
+    NEGOTIATION: { bg: "rgba(234,179,8,.15)", text: "#eab308", border: "rgba(234,179,8,.3)", key: "negotiation" },
+    CONTRACT: { bg: "rgba(139,92,246,.15)", text: "#8b5cf6", border: "rgba(139,92,246,.3)", key: "contract" },
+    WON: { bg: "rgba(16,185,129,.15)", text: "#10b981", border: "rgba(16,185,129,.3)", key: "won" },
+    LOST: { bg: "rgba(239,68,68,.15)", text: "#ef4444", border: "rgba(239,68,68,.3)", key: "lost" },
   };
-  return map[s];
+  const m = map[stage];
+  const cfg = DEAL_STAGES[m.key];
+  return { bg: m.bg, text: m.text, border: m.border, probability: cfg.probability, label: cfg.label };
 }
 
-function getPriColor(p?: string) {
+function getPriorityStyle(priority?: string) {
+  const cfg = TASK_PRIORITIES[(priority || "MEDIUM").toLowerCase() as keyof typeof TASK_PRIORITIES];
+  const color = cfg?.color || "#3b82f6";
+  return { bg: `${color}22`, text: color, label: cfg?.label || "Medium" };
+}
+
+function getRatingColor(rating?: string) {
   const map: Record<string, { bg: string; text: string }> = {
-    urgent: { bg: "rgba(239,68,68,.15)", text: "#ef4444" },
-    high: { bg: "rgba(249,115,22,.15)", text: "#f97316" },
-    medium: { bg: "rgba(234,179,8,.15)", text: "#eab308" },
-    low: { bg: "rgba(148,163,184,.15)", text: "#94a3b8" },
+    Hot: { bg: "rgba(239,68,68,.15)", text: "#ef4444" },
+    Warm: { bg: "rgba(245,158,11,.15)", text: "#f59e0b" },
+    Cold: { bg: "rgba(59,130,246,.15)", text: "#3b82f6" },
   };
-  return map[p || "low"] || map.low;
+  return map[rating || ""] ?? { bg: "rgba(0,0,0,.06)", text: "var(--muted-foreground)" };
+}
+
+function RatingBadge({ rating }: { rating?: string }) {
+  if (!rating) return null;
+  const c = getRatingColor(rating);
+  return <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase" style={{ background: c.bg, color: c.text }}>{rating}</span>;
 }
 
 function timeAgo(d: string) {
@@ -198,31 +267,33 @@ const ACTIVITY_ICON: Record<string, React.ReactNode> = {
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function LeadDetailPage() {
+export default function DealDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const id = params.id as string;
 
-  const [lead, setLead] = useState<Lead | null>(null);
-  const [pipeline, setPipeline] = useState<PipelineStatus>({ stage: "lead" });
+  const [deal, setDeal] = useState<Deal | null>(null);
+  const [pipeline, setPipeline] = useState<PipelineStatus>({ stage: "deal" });
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [activityLog, setActivityLog] = useState<ActivityItem[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFoundState] = useState(false);
+  const [generatingContract, setGeneratingContract] = useState(false);
 
   // Edit mode
   const [editMode, setEditMode] = useState(false);
-  const [form, setForm] = useState<LeadFormValues | null>(null);
+  const [form, setForm] = useState<DealFormValues | null>(null);
   const [ownerCustomMode, setOwnerCustomMode] = useState(false);
+  const [campaignCustomMode, setCampaignCustomMode] = useState(false);
   const [triedSubmit, setTriedSubmit] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Quick-action: log call/email/meeting
   const [logType, setLogType] = useState<"call" | "email" | "meeting" | null>(null);
   const [logText, setLogText] = useState("");
-  const [logRelatedTo, setLogRelatedTo] = useState<"self" | "deal" | "contract" | "customer">("self");
+  const [logRelatedTo, setLogRelatedTo] = useState<"self" | "lead" | "prospect" | "contract" | "customer">("self");
   const [logAddReminder, setLogAddReminder] = useState(false);
   const [logReminderDatetime, setLogReminderDatetime] = useState("");
   const [logSubmitting, setLogSubmitting] = useState(false);
@@ -240,12 +311,6 @@ export default function LeadDetailPage() {
   const [remForm, setRemForm] = useState<ReminderValues>({ title: "", type: "call", datetime: "", note: "" });
   const [remTried, setRemTried] = useState(false);
 
-  // Convert to Prospect
-  const [convertOpen, setConvertOpen] = useState(false);
-  const [convertForm, setConvertForm] = useState<ProspectConversionValues>({ budget: "", authority: "", need: "", timeline: "", industry: "", city: "" });
-  const [convertTried, setConvertTried] = useState(false);
-  const [converting, setConverting] = useState(false);
-
   // Delete
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -254,24 +319,24 @@ export default function LeadDetailPage() {
   const fetchAll = useCallback(async () => {
     try {
       setLoading(true);
-      const leadRow = await getLeadById(id);
-      if (!leadRow) {
+      const dealRow = await getDealById(id);
+      if (!dealRow) {
         setNotFoundState(true);
         return;
       }
-      setLead(leadRow as Lead);
+      setDeal(dealRow as Deal);
       const [pipe, fus, acts, rems] = await Promise.all([
-        getLeadPipelineStatus(id),
-        getLeadFollowUps(id),
-        getActivitiesForEntity("lead", id),
-        getLeadReminders(),
+        getDealPipelineStatus(id),
+        getDealFollowUps(id),
+        getActivitiesForEntity("deal", id),
+        getDealReminders(),
       ]);
       setPipeline(pipe as PipelineStatus);
       setFollowUps(fus as FollowUp[]);
       setActivityLog(acts as ActivityItem[]);
-      setReminders((rems as Reminder[]).filter((r) => r.lead_id === id));
+      setReminders((rems as Reminder[]).filter((r) => r.p_id === id));
     } catch {
-      toast.error("Failed to load lead");
+      toast.error("Failed to load deal");
       setNotFoundState(true);
     } finally {
       setLoading(false);
@@ -284,85 +349,124 @@ export default function LeadDetailPage() {
   }, []);
 
   // ─── Cadence & Checklist (demo data) ────────────────────────────────────
-  const cadenceColumns = useMemo(() => buildDemoCadence(lead?.id || id, "Leads"), [lead?.id, id]);
-  const checklistItems = useMemo(() => buildDemoChecklist(lead?.id || id), [lead?.id, id]);
+  const cadenceColumns = useMemo(() => buildDemoCadence(deal?.id || id, "Deals"), [deal?.id, id]);
+  const checklistItems = useMemo(() => buildDemoChecklist(deal?.id || id), [deal?.id, id]);
 
   // ─── Live validation ─────────────────────────────────────────────────────
-  const { valid: formValid, errors: formErrors } = form ? validateLeadForm(form) : { valid: true, errors: {} as Record<string, string> };
+  const { valid: formValid, errors: formErrors } = form ? validateDealForm(form) : { valid: true, errors: {} as Record<string, string> };
   const { valid: fuValid, errors: fuErrors } = validateFollowUp(fuForm);
   const { valid: remValid, errors: remErrors } = validateReminder(remForm);
-  const { valid: convertValid, errors: convertErrors } = validateProspectConversion(convertForm);
 
   // ─── Edit ────────────────────────────────────────────────────────────────
   const startEdit = () => {
-    if (!lead) return;
+    if (!deal) return;
     setForm({
-      first_name: lead.first_name, last_name: lead.last_name, email: lead.email, phone: lead.phone || "",
-      company: lead.company || "", source: lead.source || "DIRECT", estimated_value: String(lead.estimated_value || ""),
-      notes: lead.notes || "", website: lead.website || "", linkedin: lead.linkedin || "", city: lead.city || "",
-      country: lead.country || "India", industry: lead.industry || "", employee_count: lead.employee_count || "",
-      priority: (lead.priority || "medium") as LeadFormValues["priority"], status: lead.status, tags: (lead.tags || []).join(", "),
-      owner_id: lead.owner_id || "", owner_name_custom: lead.owner_name_custom || "",
+      title: deal.title, company_name: deal.company_name || "",
+      value: String(deal.value || ""), stage: deal.stage, probability: String(deal.probability ?? 10),
+      expected_close_date: deal.expected_close_date ? deal.expected_close_date.slice(0, 10) : "",
+      type: deal.type || DEAL_TYPES[0], next_step: deal.next_step || "",
+      contact_name: deal.contact_name || "", contact_role: deal.contact_role || "",
+      campaign_source: deal.campaign_source || "", priority: deal.priority || "MEDIUM",
+      tags: (deal.tags || []).join(", "), notes: deal.notes || "",
+      owner_id: deal.owner_id || "", owner_name_custom: deal.owner_name_custom || "",
     });
-    setOwnerCustomMode(!lead.owner_id && !!lead.owner_name_custom);
+    setOwnerCustomMode(!deal.owner_id && !!deal.owner_name_custom);
+    setCampaignCustomMode(!!deal.campaign_source && !CAMPAIGN_SOURCE_OPTIONS.includes(deal.campaign_source));
     setTriedSubmit(false);
     setEditMode(true);
   };
 
-  const setF = (k: keyof LeadFormValues, v: string) => setForm((f) => (f ? { ...f, [k]: v } : f));
+  const setF = (k: keyof DealFormValues, v: string) => setForm((f) => (f ? { ...f, [k]: v } as DealFormValues : f));
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!lead || !form) return;
+    if (!deal || !form) return;
     if (!formValid) { setTriedSubmit(true); toast.error("Please fix the highlighted fields"); return; }
     setSavingEdit(true);
+    const value = parseFloat(form.value) || 0;
+    const probability = Number(form.probability) || 0;
     const updates = {
-      first_name: form.first_name, last_name: form.last_name, email: form.email, phone: form.phone,
-      company: form.company, source: form.source, status: form.status, estimated_value: parseFloat(form.estimated_value) || 0,
-      notes: form.notes, website: form.website, linkedin: form.linkedin, city: form.city, country: form.country,
-      industry: form.industry, employee_count: form.employee_count, priority: form.priority,
+      title: form.title, company_name: form.company_name, value, stage: form.stage, probability,
+      expected_close_date: form.expected_close_date || null, type: form.type, next_step: form.next_step,
+      contact_name: form.contact_name, contact_role: form.contact_role, campaign_source: form.campaign_source,
+      priority: form.priority, notes: form.notes,
       tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
       owner_id: form.owner_id || undefined,
       owner_name_custom: form.owner_id ? undefined : (form.owner_name_custom || undefined),
     };
-    setLead((l) => (l ? { ...l, ...updates, owner_name: form.owner_id ? teamMembers.find((m) => m.id === form.owner_id)?.full_name : (form.owner_name_custom || undefined) } : l));
+    setDeal((d) => (d ? {
+      ...d, ...updates,
+      expected_close_date: form.expected_close_date || undefined,
+      expected_revenue: Math.round((value * probability) / 100),
+      owner_name: form.owner_id ? teamMembers.find((m) => m.id === form.owner_id)?.full_name : (form.owner_name_custom || undefined),
+    } : d));
     try {
-      await updateLead(lead.id, { ...updates, owner_id: form.owner_id || null, owner_name_custom: form.owner_id ? null : (form.owner_name_custom || null) });
-      toast.success("Lead updated");
+      await updateDeal(deal.id, {
+        ...updates,
+        expected_close_date: form.expected_close_date || null,
+        owner_id: form.owner_id || null,
+        owner_name_custom: form.owner_id ? null : (form.owner_name_custom || null),
+      });
+      toast.success("Deal updated");
       setEditMode(false);
     } catch {
-      toast.error("Failed to update lead");
+      toast.error("Failed to update deal");
     } finally {
       setSavingEdit(false);
     }
   };
 
-  // ─── Status & star ───────────────────────────────────────────────────────
-  const handleStatusChange = async (next: LeadStatus) => {
-    if (!lead) return;
-    setLead((l) => (l ? { ...l, status: next } : l));
+  // ─── Stage & star ────────────────────────────────────────────────────────
+  const handleStageChange = async (next: DealStage) => {
+    if (!deal) return;
+    const probability = getStageStyle(next).probability;
+    setDeal((d) => (d ? { ...d, stage: next, probability, expected_revenue: Math.round((d.value * probability) / 100) } : d));
     try {
-      await updateLeadStatus(lead.id, next);
-      toast.success(`Status → ${next}`);
+      await updateDealStage(deal.id, next, probability);
+      toast.success(`Stage → ${getStageStyle(next).label}`);
     } catch {
-      toast.error("Failed to update status");
+      toast.error("Failed to update stage");
     }
   };
 
-  const handleToggleStar = () => {
-    setLead((l) => (l ? { ...l, starred: !l.starred } : l));
+  const handleToggleStar = async () => {
+    if (!deal) return;
+    const next = !deal.starred;
+    setDeal((d) => (d ? { ...d, starred: next } : d));
+    try {
+      await toggleDealStar(deal.id, next);
+    } catch {
+      toast.error("Failed to update");
+      setDeal((d) => (d ? { ...d, starred: !next } : d));
+    }
   };
 
-  // ─── Quick actions: log call / email / meeting (#10, #27, #28) ──────────────
+  const handleGenerateContract = async () => {
+    if (!deal) return;
+    setGeneratingContract(true);
+    try {
+      const result = await convertDealToContract(deal.id);
+      if (!result) throw new Error("not found");
+      setPipeline((p) => ({ ...p, stage: "contract", contract_id: result.id }));
+      toast.success("Contract generated");
+    } catch {
+      toast.error("Failed to generate contract");
+    } finally {
+      setGeneratingContract(false);
+    }
+  };
+
+  // ─── Quick actions: log call / email / meeting ──────────────────────────
   const handleLogActivity = async () => {
-    if (!lead || !logType || !logText.trim()) return;
+    if (!deal || !logType || !logText.trim()) return;
     setLogSubmitting(true);
     const text = logText.trim();
 
-    let relatedType = "lead";
-    let relatedId = lead.id;
-    let entityName = `${lead.first_name} ${lead.last_name}`;
-    if (logRelatedTo === "deal" && pipeline.deal_id) { relatedType = "deal"; relatedId = pipeline.deal_id; entityName = `Deal for ${entityName}`; }
+    let relatedType = "deal";
+    let relatedId = deal.id;
+    let entityName = deal.title;
+    if (logRelatedTo === "lead" && pipeline.lead_id) { relatedType = "lead"; relatedId = pipeline.lead_id; entityName = `Lead for ${entityName}`; }
+    else if (logRelatedTo === "prospect" && pipeline.prospect_id) { relatedType = "prospect"; relatedId = pipeline.prospect_id; entityName = `Prospect for ${entityName}`; }
     else if (logRelatedTo === "contract" && pipeline.contract_id) { relatedType = "contract"; relatedId = pipeline.contract_id; entityName = `Contract for ${entityName}`; }
     else if (logRelatedTo === "customer" && pipeline.customer_id) { relatedType = "customer"; relatedId = pipeline.customer_id; entityName = `Customer ${entityName}`; }
 
@@ -374,9 +478,9 @@ export default function LeadDetailPage() {
         entity_name: entityName,
         description: text,
       });
-      if (relatedType === "lead") {
+      if (relatedType === "deal") {
         setActivityLog((p) => [
-          { id: row.id, type: logType, description: text, user_name: "You", entity_type: "lead", entity_id: lead.id, entity_name: entityName, created_at: new Date().toISOString() },
+          { id: row.id, type: logType, description: text, user_name: "You", entity_type: "deal", entity_id: deal.id, entity_name: entityName, created_at: new Date().toISOString() },
           ...p,
         ]);
       }
@@ -404,26 +508,26 @@ export default function LeadDetailPage() {
 
   // ─── Notes ───────────────────────────────────────────────────────────────
   const handleAddNote = async () => {
-    if (!lead || !newNote.trim()) return;
+    if (!deal || !newNote.trim()) return;
     const text = newNote.trim();
-    const temp: LeadNote = { id: Math.random().toString(36).slice(7), text, created_at: new Date().toISOString(), author: "You" };
-    setLead((l) => (l ? { ...l, lead_notes: [temp, ...(l.lead_notes || [])] } : l));
+    const temp: DNote = { id: Math.random().toString(36).slice(7), text, created_at: new Date().toISOString(), author: "You" };
+    setDeal((d) => (d ? { ...d, dnotes: [temp, ...(d.dnotes || [])] } : d));
     setNewNote("");
     try {
-      const row = await addLeadNote(lead.id, text);
-      setLead((l) => (l ? { ...l, lead_notes: l.lead_notes?.map((n) => (n.id === temp.id ? { ...n, id: row.id } : n)) } : l));
+      const row = await addDealNote(deal.id, text);
+      setDeal((d) => (d ? { ...d, dnotes: d.dnotes?.map((n) => (n.id === temp.id ? { ...n, id: row.id } : n)) } : d));
       toast.success("Note added");
     } catch {
       toast.error("Failed to save note");
     }
   };
 
-  // ─── Follow-ups (#19, #20) ───────────────────────────────────────────────
+  // ─── Follow-ups ──────────────────────────────────────────────────────────
   const handleCreateFollowUp = async () => {
-    if (!lead) return;
+    if (!deal) return;
     if (!fuValid) { setFuTried(true); return; }
     try {
-      const row = await createLeadFollowUp(lead.id, fuForm);
+      const row = await createDealFollowUp(deal.id, fuForm);
       setFollowUps((p) => [...p, { id: row.id, title: fuForm.title, type: fuForm.type, notes: fuForm.notes, due_date: fuForm.due_date, done: false, created_at: new Date().toISOString() }]
         .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()));
       toast.success("Follow-up scheduled");
@@ -438,7 +542,7 @@ export default function LeadDetailPage() {
   const handleToggleFollowUp = async (fu: FollowUp) => {
     setFollowUps((p) => p.map((f) => (f.id === fu.id ? { ...f, done: !f.done } : f)));
     try {
-      await toggleLeadFollowUpDone(fu.id, !fu.done);
+      await toggleDealFollowUpDone(fu.id, !fu.done);
     } catch {
       toast.error("Failed to update follow-up");
     }
@@ -447,7 +551,7 @@ export default function LeadDetailPage() {
   const handleDeleteFollowUp = async (fuId: string) => {
     setFollowUps((p) => p.filter((f) => f.id !== fuId));
     try {
-      await deleteLeadFollowUp(fuId);
+      await deleteDealFollowUp(fuId);
     } catch {
       toast.error("Failed to delete follow-up");
     }
@@ -455,16 +559,16 @@ export default function LeadDetailPage() {
 
   // ─── Reminders ───────────────────────────────────────────────────────────
   const handleCreateReminder = async () => {
-    if (!lead) return;
+    if (!deal) return;
     if (!remValid) { setRemTried(true); return; }
     const tempId = Math.random().toString(36).slice(7);
-    const r: Reminder = { id: tempId, lead_id: lead.id, lead_name: `${lead.first_name} ${lead.last_name}`, title: remForm.title, type: remForm.type, datetime: remForm.datetime, note: remForm.note, done: false };
+    const r: Reminder = { id: tempId, p_id: deal.id, p_name: deal.title, title: remForm.title, type: remForm.type, datetime: remForm.datetime, note: remForm.note, done: false };
     setReminders((p) => [...p, r].sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime()));
     setRemForm({ title: "", type: "call", datetime: "", note: "" });
     setRemTried(false);
     setRemOpen(false);
     try {
-      const row = await createLeadReminder({ entity_id: lead.id, entity_name: r.lead_name, title: r.title, type: r.type, datetime: r.datetime, note: r.note });
+      const row = await createReminder("deal", deal.id, r.p_name, { title: r.title, type: r.type, datetime: r.datetime, note: r.note });
       setReminders((p) => p.map((x) => (x.id === tempId ? { ...x, id: row.id } : x)));
       toast.success("Reminder set");
     } catch {
@@ -475,68 +579,37 @@ export default function LeadDetailPage() {
   const handleToggleReminder = async (r: Reminder) => {
     setReminders((p) => p.map((x) => (x.id === r.id ? { ...x, done: !x.done } : x)));
     try {
-      await toggleLeadReminderDone(r.id, !r.done);
+      await toggleReminderDone(r.id, !r.done);
     } catch {
       toast.error("Failed to update reminder");
     }
   };
 
-  // ─── Convert to Prospect (#15) ──────────────────────────────────────────────
-  const openConvert = () => {
-    if (!lead) return;
-    setConvertForm({ budget: lead.estimated_value ? String(lead.estimated_value) : "", authority: "", need: "", timeline: "", industry: lead.industry || "", city: lead.city || "" });
-    setConvertTried(false);
-    setConvertOpen(true);
-  };
-
-  const handleConvert = async () => {
-    if (!lead) return;
-    if (!convertValid) { setConvertTried(true); return; }
-    setConverting(true);
-    try {
-      await convertLeadToProspect(lead.id, {
-        budget: parseFloat(convertForm.budget) || 0,
-        authority: convertForm.authority,
-        need: convertForm.need,
-        timeline: convertForm.timeline,
-        industry: convertForm.industry,
-        city: convertForm.city,
-      });
-      toast.success("Converted to Prospect!");
-      setConvertOpen(false);
-      router.push("/dashboard/prospects");
-    } catch {
-      toast.error("Failed to convert lead");
-    } finally {
-      setConverting(false);
-    }
-  };
-
   // ─── Delete ──────────────────────────────────────────────────────────────
   const handleDelete = async () => {
-    if (!lead) return;
+    if (!deal) return;
     setDeleting(true);
     try {
-      await deleteLeadAction(lead.id);
-      toast.success("Lead deleted");
-      router.push("/dashboard/leads");
+      await deleteDealAction(deal.id);
+      toast.success("Deal deleted");
+      router.push("/dashboard/deals");
     } catch {
-      toast.error("Failed to delete lead");
+      toast.error("Failed to delete deal");
       setDeleting(false);
     }
   };
 
   // ─── Loading / not-found ─────────────────────────────────────────────────
   if (loading) {
-    return <LeadDetailLoading />;
+    return <DealDetailLoading />;
   }
 
-  if (notFound || !lead) {
+  if (notFound || !deal) {
     return (
       <div className="max-w-[1600px] mx-auto space-y-4">
-        <Link href="/dashboard/leads" className="text-xs font-semibold flex items-center gap-1.5 hover:opacity-70" style={{ color: "var(--graph-to)" }}><ArrowLeft size={14} />Back to Leads</Link>
+        <Link href="/dashboard/deals" className="text-xs font-semibold flex items-center gap-1.5 hover:opacity-70" style={{ color: "var(--graph-to)" }}><ArrowLeft size={14} />Back to Deals</Link>
         <div className="rounded-2xl border p-10 text-center" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
-          <p className="text-sm font-semibold" style={{ color: "var(--text-color)" }}>Lead not found</p>
+          <p className="text-sm font-semibold" style={{ color: "var(--text-color)" }}>Deal not found</p>
           <p className="text-xs text-muted-foreground mt-1">It may have been deleted, or you don&apos;t have access to it.</p>
         </div>
       </div>
@@ -547,19 +620,34 @@ export default function LeadDetailPage() {
   const stageIndex = PIPELINE_STAGES.findIndex((s) => s.key === pipeline.stage);
   const overdueFollowUps = followUps.filter((f) => isOverdue(f.due_date, f.done));
   const dueTodayFollowUps = followUps.filter((f) => isDueToday(f.due_date, f.done));
-  const ringColor = overdueFollowUps.length > 0 ? "#ef4444" : dueTodayFollowUps.length > 0 ? "#eab308" : lead.starred ? "#a855f7" : undefined;
+  const ringColor = overdueFollowUps.length > 0 ? "#ef4444" : dueTodayFollowUps.length > 0 ? "#eab308" : deal.starred ? "#a855f7" : undefined;
+  const stageStyle = getStageStyle(deal.stage);
+  const priorityStyle = getPriorityStyle(deal.priority);
 
   const timeline = [
     ...activityLog.map((a) => ({ id: a.id, type: a.type, title: a.description, sub: a.user_name, created_at: a.created_at })),
-    ...(lead.lead_notes || []).map((n) => ({ id: n.id, type: "note", title: n.text, sub: n.author || "You", created_at: n.created_at })),
+    ...(deal.dnotes || []).map((n) => ({ id: n.id, type: "note", title: n.text, sub: n.author || "You", created_at: n.created_at })),
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const scrollTo = (sectionId: string) => document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
+  // Stage badge link helper for the pipeline breadcrumb
+  const stageHref = (key: string): string | undefined => {
+    if (key === "lead") return pipeline.lead_id ? `/dashboard/leads/${pipeline.lead_id}` : undefined;
+    if (key === "prospect") return pipeline.prospect_id ? `/dashboard/prospects/${pipeline.prospect_id}` : undefined;
+    if (key === "contract") return pipeline.contract_id ? `/dashboard/contracts` : undefined;
+    if (key === "customer") return pipeline.customer_id ? `/dashboard/customers` : undefined;
+    return undefined;
+  };
+
+  // Avatar initials from company name, falling back to deal title
+  const initialsSource = deal.company_name || deal.title;
+  const initials = initialsSource.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+
   return (
     <div className="space-y-5 max-w-[1600px] mx-auto pb-10">
       {/* Back link */}
-      <Link href="/dashboard/leads" className="text-xs font-semibold flex items-center gap-1.5 hover:opacity-70 w-fit" style={{ color: "var(--graph-to)" }}><ArrowLeft size={14} />Back to Leads</Link>
+      <Link href="/dashboard/deals" className="text-xs font-semibold flex items-center gap-1.5 hover:opacity-70 w-fit" style={{ color: "var(--graph-to)" }}><ArrowLeft size={14} />Back to Deals</Link>
 
       {/* ── HEADER ── */}
       <div className="rounded-2xl border p-5" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
@@ -567,7 +655,7 @@ export default function LeadDetailPage() {
           <div className="flex items-start gap-4">
             <div className="relative shrink-0">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold" style={{ background: "linear-gradient(135deg,#a855f7,#00f2fe)", color: "#0a0a0a", boxShadow: ringColor ? `0 0 0 3px ${ringColor}` : undefined }}>
-                {lead.first_name[0]}{lead.last_name[0]}
+                {initials || "DL"}
               </div>
               {(overdueFollowUps.length > 0 || dueTodayFollowUps.length > 0) && (
                 <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: overdueFollowUps.length > 0 ? "#ef4444" : "#eab308", color: "#0a0a0a" }}>
@@ -577,16 +665,16 @@ export default function LeadDetailPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="cause-font text-xl font-bold" style={{ color: "var(--text-color)" }}>{lead.first_name} {lead.last_name}</h1>
-                <button onClick={handleToggleStar} className="hover:opacity-70">{lead.starred ? <Star size={16} fill="#eab308" color="#eab308" /> : <StarOff size={16} className="text-muted-foreground" />}</button>
+                <h1 className="cause-font text-xl font-bold" style={{ color: "var(--text-color)" }}>{deal.title}</h1>
+                <button onClick={handleToggleStar} className="hover:opacity-70">{deal.starred ? <Star size={16} fill="#eab308" color="#eab308" /> : <StarOff size={16} className="text-muted-foreground" />}</button>
               </div>
-              <p className="text-sm text-muted-foreground mt-0.5">{lead.company || "No company"}{lead.industry ? ` · ${lead.industry}` : ""}</p>
+              <p className="text-sm text-muted-foreground mt-0.5">{deal.company_name || "No company"}{deal.type ? ` · ${deal.type}` : ""}</p>
               <div className="flex flex-wrap gap-2 mt-2.5">
-                <select value={lead.status} onChange={(e) => handleStatusChange(e.target.value as LeadStatus)} className="px-2.5 py-1 rounded-lg font-bold text-[10px] cursor-pointer outline-none uppercase border" style={{ background: getStatusColor(lead.status).bg, color: getStatusColor(lead.status).text, borderColor: getStatusColor(lead.status).border }}>
-                  {(STAGES.includes(lead.status) ? STAGES : [...STAGES, lead.status]).map((s) => <option key={s} value={s}>{s}</option>)}
+                <select value={deal.stage} onChange={(e) => handleStageChange(e.target.value as DealStage)} className="px-2.5 py-1 rounded-lg font-bold text-[10px] cursor-pointer outline-none uppercase border" style={{ background: stageStyle.bg, color: stageStyle.text, borderColor: stageStyle.border }}>
+                  {STAGES.map((s) => <option key={s} value={s}>{getStageStyle(s).label}</option>)}
                 </select>
-                <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase" style={{ background: getPriColor(lead.priority).bg, color: getPriColor(lead.priority).text }}>{lead.priority || "low"} priority</span>
-                {lead.source && <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold border" style={{ borderColor: "var(--card-border)", color: "var(--muted-foreground)" }}>{lead.source}</span>}
+                <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase" style={{ background: priorityStyle.bg, color: priorityStyle.text }}>{priorityStyle.label}</span>
+                {deal.campaign_source && <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold border" style={{ borderColor: "var(--card-border)", color: "var(--muted-foreground)" }}>{deal.campaign_source}</span>}
                 {overdueFollowUps.length > 0 && <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase flex items-center gap-1" style={{ background: "rgba(239,68,68,.12)", color: "#ef4444" }}><AlertTriangle size={10} />{overdueFollowUps.length} overdue</span>}
                 {dueTodayFollowUps.length > 0 && <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase flex items-center gap-1" style={{ background: "rgba(234,179,8,.12)", color: "#eab308" }}><Clock size={10} />{dueTodayFollowUps.length} due today</span>}
               </div>
@@ -598,13 +686,37 @@ export default function LeadDetailPage() {
           </div>
         </div>
 
-        {/* Pipeline breadcrumb (#21, #27) */}
+        {/* Commercial-terms summary */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+          {[
+            { label: "Value", value: `₹${deal.value.toLocaleString("en-IN")}`, color: "var(--graph-to)" },
+            { label: "Probability", value: `${deal.probability}%`, color: "var(--text-color)" },
+            { label: "Expected Close", value: deal.expected_close_date ? fmtDate(deal.expected_close_date) : "—", color: "var(--text-color)" },
+            { label: "Owner", value: deal.owner_name || "Unassigned", color: "var(--text-color)" },
+          ].map((item) => (
+            <div key={item.label} className="p-2.5 rounded-xl border" style={{ borderColor: "var(--card-border)", background: "var(--accent)" }}>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-1">{item.label}</p>
+              <p className="text-xs font-semibold line-clamp-2" style={{ color: item.color }}>{item.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Stage pipeline bar */}
+        <div className="mt-4">
+          <DealStagePipeline stage={deal.stage} onStageClick={handleStageChange} />
+        </div>
+
+        {/* Pipeline breadcrumb */}
         <div className="flex items-center gap-1 mt-4 flex-wrap">
           {PIPELINE_STAGES.map((s, i) => {
             const reached = i <= stageIndex;
+            const href = stageHref(s.key);
+            const badge = (
+              <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase" style={{ background: reached ? "var(--graph-to)" : "var(--accent)", color: reached ? "#0a0a0a" : "var(--muted-foreground)" }}>{s.label}</span>
+            );
             return (
               <div key={s.key} className="flex items-center gap-1">
-                <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase" style={{ background: reached ? "var(--graph-to)" : "var(--accent)", color: reached ? "#0a0a0a" : "var(--muted-foreground)" }}>{s.label}</span>
+                {href ? <Link href={href} className="hover:opacity-80">{badge}</Link> : badge}
                 {i < PIPELINE_STAGES.length - 1 && <ChevronRight size={12} className="text-muted-foreground" />}
               </div>
             );
@@ -618,10 +730,12 @@ export default function LeadDetailPage() {
           <QuickActionButton icon={<Video size={13} />} label="Log Meeting" onClick={() => setLogType("meeting")} active={logType === "meeting"} />
           <QuickActionButton icon={<Bell size={13} />} label="Set Reminder" onClick={() => { setRemOpen(true); scrollTo("reminders"); }} />
           <QuickActionButton icon={<Calendar size={13} />} label="Schedule Follow-up" onClick={() => { setFuOpen(true); scrollTo("followups"); }} />
-          {pipeline.stage === "lead" ? (
-            <QuickActionButton icon={<ArrowRightCircle size={13} />} label="Convert to Prospect" onClick={openConvert} primary />
-          ) : (
-            <Link href="/dashboard/prospects" className="h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 border hover:opacity-70" style={{ borderColor: "var(--card-border)", color: "var(--graph-to)" }}><ArrowRightCircle size={13} />View Prospect</Link>
+          {deal.stage !== "WON" && <QuickActionButton icon={<Trophy size={13} />} label="Mark Won" onClick={() => handleStageChange("WON")} primary />}
+          {deal.stage !== "LOST" && <QuickActionButton icon={<XCircle size={13} />} label="Mark Lost" onClick={() => handleStageChange("LOST")} />}
+          {pipeline.contract_id ? (
+            <Link href="/dashboard/contracts" className="h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 border hover:opacity-70" style={{ borderColor: "var(--card-border)", color: "var(--graph-to)" }}><FileText size={13} />View Contract</Link>
+          ) : deal.stage === "WON" && (
+            <QuickActionButton icon={<FileText size={13} />} label={generatingContract ? "Generating..." : "Generate Contract"} onClick={handleGenerateContract} disabled={generatingContract} />
           )}
         </div>
 
@@ -634,8 +748,9 @@ export default function LeadDetailPage() {
               <div>
                 <label className="block text-[10px] font-semibold mb-1" style={{ color: "var(--text-color)" }}>Related To</label>
                 <select value={logRelatedTo} onChange={(e) => setLogRelatedTo(e.target.value as typeof logRelatedTo)} className="ct-fi">
-                  <option value="self">This Lead</option>
-                  {pipeline.deal_id && <option value="deal">Deal</option>}
+                  <option value="self">This Deal</option>
+                  {pipeline.lead_id && <option value="lead">Originating Lead</option>}
+                  {pipeline.prospect_id && <option value="prospect">Originating Prospect</option>}
                   {pipeline.contract_id && <option value="contract">Contract</option>}
                   {pipeline.customer_id && <option value="customer">Customer</option>}
                 </select>
@@ -689,40 +804,57 @@ export default function LeadDetailPage() {
               {editMode && (
                 <div className="flex gap-2">
                   <button onClick={() => setEditMode(false)} className="h-8 px-3 rounded-lg text-xs font-semibold border" style={{ borderColor: "var(--card-border)", color: "var(--text-color)" }}>Cancel</button>
-                  <button form="edit-lead-form" type="submit" disabled={savingEdit || !formValid} className="h-8 px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50" style={{ background: "var(--graph-to)", color: "#0a0a0a" }}><Save size={12} />{savingEdit ? "Saving..." : "Save Changes"}</button>
+                  <button form="edit-deal-form" type="submit" disabled={savingEdit || !formValid} className="h-8 px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50" style={{ background: "var(--graph-to)", color: "#0a0a0a" }}><Save size={12} />{savingEdit ? "Saving..." : "Save Changes"}</button>
                 </div>
               )}
             </div>
 
             {editMode && form ? (
-              <form id="edit-lead-form" onSubmit={handleSaveEdit} className="space-y-4">
+              <form id="edit-deal-form" onSubmit={handleSaveEdit} className="space-y-4">
                 <div className="grid sm:grid-cols-2 gap-3">
-                  <EF label="First Name *" error={triedSubmit ? formErrors.first_name : undefined}><input value={form.first_name} onChange={(e) => setF("first_name", e.target.value)} className="ct-fi" /></EF>
-                  <EF label="Last Name *" error={triedSubmit ? formErrors.last_name : undefined}><input value={form.last_name} onChange={(e) => setF("last_name", e.target.value)} className="ct-fi" /></EF>
-                  <EF label="Email" error={triedSubmit ? formErrors.email : undefined}><input type="email" value={form.email} onChange={(e) => setF("email", e.target.value)} className="ct-fi" /></EF>
-                  <EF label="Phone"><input value={form.phone} onChange={(e) => setF("phone", e.target.value)} className="ct-fi" /></EF>
-                  <EF label="Company"><input value={form.company} onChange={(e) => setF("company", e.target.value)} className="ct-fi" /></EF>
-                  <EF label="Industry"><input value={form.industry} onChange={(e) => setF("industry", e.target.value)} className="ct-fi" /></EF>
-                  <EF label="City"><input value={form.city} onChange={(e) => setF("city", e.target.value)} className="ct-fi" /></EF>
-                  <EF label="Country"><input value={form.country} onChange={(e) => setF("country", e.target.value)} className="ct-fi" /></EF>
-                  <EF label="Website"><input value={form.website} onChange={(e) => setF("website", e.target.value)} className="ct-fi" /></EF>
-                  <EF label="LinkedIn"><input value={form.linkedin} onChange={(e) => setF("linkedin", e.target.value)} className="ct-fi" /></EF>
-                  <EF label="Employees">
-                    <select value={form.employee_count} onChange={(e) => setF("employee_count", e.target.value)} className="ct-fi">
-                      <option value="">Select range</option>
-                      {["1-10", "10-50", "50-100", "100-500", "500-1000", "1000+"].map((o) => <option key={o}>{o}</option>)}
+                  <EF label="Deal Title *" error={triedSubmit ? formErrors.title : undefined}><input value={form.title} onChange={(e) => setF("title", e.target.value)} className="ct-fi" /></EF>
+                  <EF label="Company"><input value={form.company_name} onChange={(e) => setF("company_name", e.target.value)} className="ct-fi" /></EF>
+                  <EF label="Value (₹) *" error={triedSubmit ? formErrors.value : undefined}><input type="number" value={form.value} onChange={(e) => setF("value", e.target.value)} className="ct-fi" /></EF>
+                  <EF label="Stage">
+                    <select value={form.stage} onChange={(e) => { const ns = e.target.value as DealStage; setF("stage", ns); setF("probability", String(getStageStyle(ns).probability)); }} className="ct-fi">
+                      {STAGES.map((s) => <option key={s} value={s}>{getStageStyle(s).label}</option>)}
                     </select>
                   </EF>
-                  <EF label="Lead Source">
-                    <select value={form.source} onChange={(e) => setF("source", e.target.value)} className="ct-fi">
-                      {[["DIRECT", "Direct Form"], ["GOOGLE", "Google Ads"], ["META", "Meta Ads"], ["REFERRAL", "Referral"], ["WHATSAPP", "WhatsApp"], ["LINKEDIN", "LinkedIn"], ["EVENT", "Event"], ["OTHER", "Other"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  <EF label="Probability (%)" error={triedSubmit ? formErrors.probability : undefined}><input type="number" min={0} max={100} value={form.probability} onChange={(e) => setF("probability", e.target.value)} className="ct-fi" /></EF>
+                  <EF label="Expected Close Date"><input type="date" value={form.expected_close_date} onChange={(e) => setF("expected_close_date", e.target.value)} className="ct-fi" /></EF>
+                  <EF label="Type">
+                    <select value={form.type} onChange={(e) => setF("type", e.target.value)} className="ct-fi">
+                      {DEAL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </EF>
-                  <EF label="Estimated Value (₹)" error={triedSubmit ? formErrors.estimated_value : undefined}><input type="number" value={form.estimated_value} onChange={(e) => setF("estimated_value", e.target.value)} className="ct-fi" /></EF>
                   <EF label="Priority">
-                    <select value={form.priority} onChange={(e) => setF("priority", e.target.value as LeadFormValues["priority"])} className="ct-fi">
-                      {["low", "medium", "high", "urgent"].map((p) => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+                    <select value={form.priority} onChange={(e) => setF("priority", e.target.value)} className="ct-fi">
+                      {PRIORITY_OPTIONS.map((p) => <option key={p} value={p}>{getPriorityStyle(p).label}</option>)}
                     </select>
+                  </EF>
+                  <EF label="Contact Name"><input value={form.contact_name} onChange={(e) => setF("contact_name", e.target.value)} className="ct-fi" /></EF>
+                  <EF label="Contact Role">
+                    <select value={form.contact_role} onChange={(e) => setF("contact_role", e.target.value)} className="ct-fi">
+                      <option value="">—</option>
+                      {CONTACT_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </EF>
+                  <EF label="Campaign Source">
+                    {(() => {
+                      const isCustom = campaignCustomMode || (!!form.campaign_source && !CAMPAIGN_SOURCE_OPTIONS.includes(form.campaign_source));
+                      return (
+                        <>
+                          <select value={isCustom ? "__custom__" : form.campaign_source} onChange={(e) => { if (e.target.value === "__custom__") { setCampaignCustomMode(true); setF("campaign_source", ""); } else { setCampaignCustomMode(false); setF("campaign_source", e.target.value); } }} className="ct-fi">
+                            <option value="">—</option>
+                            {CAMPAIGN_SOURCE_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                            <option value="__custom__">+ Add custom source...</option>
+                          </select>
+                          {isCustom && (
+                            <input value={form.campaign_source} onChange={(e) => setF("campaign_source", e.target.value)} className="ct-fi mt-2" placeholder="Type custom source" autoFocus />
+                          )}
+                        </>
+                      );
+                    })()}
                   </EF>
                   <EF label="Owner">
                     <select
@@ -730,10 +862,11 @@ export default function LeadDetailPage() {
                       onChange={(e) => {
                         if (e.target.value === "__custom__") {
                           setOwnerCustomMode(true);
-                          setForm((f) => (f ? { ...f, owner_id: "" } : f));
+                          setF("owner_id", "");
                         } else {
                           setOwnerCustomMode(false);
-                          setForm((f) => (f ? { ...f, owner_id: e.target.value, owner_name_custom: "" } : f));
+                          setF("owner_id", e.target.value);
+                          setF("owner_name_custom", "");
                         }
                       }}
                       className="ct-fi"
@@ -748,39 +881,60 @@ export default function LeadDetailPage() {
                   </EF>
                   <EF label="Tags (comma separated)"><input value={form.tags} onChange={(e) => setF("tags", e.target.value)} className="ct-fi" /></EF>
                 </div>
-                <EF label="Background Notes"><textarea rows={4} value={form.notes} onChange={(e) => setF("notes", e.target.value)} className="ct-fi" style={{ height: "auto", padding: "0.6rem 0.75rem" }} /></EF>
-                <p className="text-[10px] text-muted-foreground">* Required. Provide at least an email or phone number so a rep can reach this lead.</p>
+                <EF label="Next Step"><input value={form.next_step} onChange={(e) => setF("next_step", e.target.value)} className="ct-fi" placeholder="e.g. Send revised proposal" /></EF>
+                <EF label="Notes"><textarea rows={4} value={form.notes} onChange={(e) => setF("notes", e.target.value)} className="ct-fi" style={{ height: "auto", padding: "0.6rem 0.75rem" }} /></EF>
               </form>
             ) : (
               <div className="grid sm:grid-cols-2 gap-4">
-                <DS title="Contact">
-                  <DR icon={<Mail size={12} />} label="Email">{lead.email ? <a href={`mailto:${lead.email}`} className="hover:underline" style={{ color: "var(--graph-to)" }}>{lead.email}</a> : <span className="text-muted-foreground">—</span>}</DR>
-                  <DR icon={<Phone size={12} />} label="Phone">{lead.phone ? <a href={`tel:${lead.phone}`} className="hover:underline" style={{ color: "var(--graph-to)" }}>{lead.phone}</a> : <span className="text-muted-foreground">—</span>}</DR>
-                  <DR icon={<Building size={12} />} label="Company"><span style={{ color: "var(--text-color)" }}>{lead.company || "—"}</span></DR>
-                  <DR icon={<Globe size={12} />} label="Website">{lead.website ? <a href={`https://${lead.website}`} target="_blank" rel="noreferrer" className="hover:underline" style={{ color: "var(--graph-to)" }}>{lead.website}</a> : <span className="text-muted-foreground">—</span>}</DR>
-                  <DR icon={<Linkedin size={12} />} label="LinkedIn">{lead.linkedin ? <a href={`https://${lead.linkedin}`} target="_blank" rel="noreferrer" className="hover:underline" style={{ color: "var(--graph-to)" }}>{lead.linkedin}</a> : <span className="text-muted-foreground">—</span>}</DR>
-                  <DR icon={<MapPin size={12} />} label="Location"><span style={{ color: "var(--text-color)" }}>{[lead.city, lead.country].filter(Boolean).join(", ") || "—"}</span></DR>
-                </DS>
                 <DS title="Deal Info">
-                  <DR icon={<DollarSign size={12} />} label="Est. Value"><span className="font-bold" style={{ color: "var(--graph-to)" }}>₹{(lead.estimated_value || 0).toLocaleString("en-IN")}</span></DR>
-                  <DR icon={<Hash size={12} />} label="Industry"><span style={{ color: "var(--text-color)" }}>{lead.industry || "—"}</span></DR>
-                  <DR icon={<Users size={12} />} label="Employees"><span style={{ color: "var(--text-color)" }}>{lead.employee_count || "—"}</span></DR>
-                  <DR icon={<Briefcase size={12} />} label="Owner"><span style={{ color: "var(--text-color)" }}>{lead.owner_name || "Unassigned"}</span></DR>
-                  <DR icon={<Calendar size={12} />} label="Created"><span style={{ color: "var(--text-color)" }}>{fmtDate(lead.created_at)}</span></DR>
-                  {lead.tags && lead.tags.length > 0 && (
+                  <DR icon={<Building size={12} />} label="Company"><span style={{ color: "var(--text-color)" }}>{deal.company_name || "—"}</span></DR>
+                  <DR icon={<Briefcase size={12} />} label="Type"><span style={{ color: "var(--text-color)" }}>{deal.type || "—"}</span></DR>
+                  <DR icon={<UserCheck size={12} />} label="Contact">{deal.contact_name ? <span style={{ color: "var(--text-color)" }}>{deal.contact_name}{deal.contact_role ? ` (${deal.contact_role})` : ""}</span> : <span className="text-muted-foreground">—</span>}</DR>
+                  <DR icon={<ArrowRightCircle size={12} />} label="Next Step"><span style={{ color: "var(--text-color)" }}>{deal.next_step || "—"}</span></DR>
+                  <DR icon={<Calendar size={12} />} label="Created"><span style={{ color: "var(--text-color)" }}>{fmtDate(deal.created_at)}</span></DR>
+                </DS>
+                <DS title="Pipeline & Value">
+                  <DR icon={<DollarSign size={12} />} label="Value"><span className="font-bold" style={{ color: "var(--graph-to)" }}>₹{deal.value.toLocaleString("en-IN")}</span></DR>
+                  <DR icon={<TrendingUp size={12} />} label="Expected Revenue"><span className="font-bold" style={{ color: "var(--graph-to)" }}>₹{deal.expected_revenue.toLocaleString("en-IN")}</span></DR>
+                  <DR icon={<Hash size={12} />} label="Probability"><span style={{ color: "var(--text-color)" }}>{deal.probability}%</span></DR>
+                  <DR icon={<CalendarClock size={12} />} label="Expected Close"><span style={{ color: "var(--text-color)" }}>{deal.expected_close_date ? fmtDate(deal.expected_close_date) : "—"}</span></DR>
+                  <DR icon={<Briefcase size={12} />} label="Owner"><span style={{ color: "var(--text-color)" }}>{deal.owner_name || "Unassigned"}</span></DR>
+                  {deal.tags && deal.tags.length > 0 && (
                     <div className="flex items-start gap-2.5">
                       <div className="text-muted-foreground mt-0.5 shrink-0"><Tag size={12} /></div>
                       <div className="flex-1 min-w-0">
                         <span className="block text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Tags</span>
-                        <div className="flex flex-wrap gap-1.5">{lead.tags.map((t) => <span key={t} className="px-2 py-0.5 rounded-lg text-[10px] font-semibold" style={{ background: "rgba(168,85,247,.12)", color: "#a855f7" }}>{t}</span>)}</div>
+                        <div className="flex flex-wrap gap-1.5">{deal.tags.map((t) => <span key={t} className="px-2 py-0.5 rounded-lg text-[10px] font-semibold" style={{ background: "rgba(168,85,247,.12)", color: "#a855f7" }}>{t}</span>)}</div>
                       </div>
                     </div>
                   )}
                 </DS>
-                {lead.notes && (
+                <DS title="Originating Lead">
+                  <DR icon={<UserCheck size={12} />} label="Contact"><span style={{ color: "var(--text-color)" }}>{deal.lead.first_name} {deal.lead.last_name}</span></DR>
+                  <DR icon={<Mail size={12} />} label="Email">{deal.lead.email ? <a href={`mailto:${deal.lead.email}`} className="hover:underline" style={{ color: "var(--graph-to)" }}>{deal.lead.email}</a> : <span className="text-muted-foreground">—</span>}</DR>
+                  <DR icon={<Building size={12} />} label="Website">{deal.lead.website ? <a href={deal.lead.website} target="_blank" rel="noreferrer" className="hover:underline truncate" style={{ color: "var(--graph-to)" }}>{deal.lead.website}</a> : <span className="text-muted-foreground">—</span>}</DR>
+                  <DR icon={<Hash size={12} />} label="Employees"><span style={{ color: "var(--text-color)" }}>{deal.lead.employee_count || "—"}</span></DR>
+                </DS>
+                {deal.prospect && (
+                  <DS title="Originating Prospect (BANT)">
+                    <DR icon={<DollarSign size={12} />} label="Budget"><span className="font-bold" style={{ color: "var(--graph-to)" }}>₹{(deal.prospect.budget || 0).toLocaleString("en-IN")}</span></DR>
+                    <DR icon={<CheckCircle2 size={12} />} label="Authority"><span style={{ color: deal.prospect.authority ? "#10b981" : "#ef4444" }}>{deal.prospect.authority ? "Confirmed" : "Unverified"}</span></DR>
+                    <DR icon={<Clock size={12} />} label="Timeline"><span style={{ color: "var(--text-color)" }}>{deal.prospect.timeline?.split(" (")[0] || "—"}</span></DR>
+                    <DR icon={<MapPin size={12} />} label="Location"><span style={{ color: "var(--text-color)" }}>{deal.prospect.city || "—"}</span></DR>
+                    <DR icon={<Hash size={12} />} label="Industry"><span style={{ color: "var(--text-color)" }}>{deal.prospect.industry || "—"}</span></DR>
+                    <DR icon={<Award size={12} />} label="Rating"><RatingBadge rating={deal.prospect.rating} /></DR>
+                    {deal.prospect.need && (
+                      <div className="flex items-start gap-2.5">
+                        <div className="text-muted-foreground mt-0.5 shrink-0"><MessageSquare size={12} /></div>
+                        <div className="flex-1 min-w-0"><span className="block text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5">Need</span><div className="text-xs" style={{ color: "var(--text-color)" }}>{deal.prospect.need}</div></div>
+                      </div>
+                    )}
+                  </DS>
+                )}
+                {deal.notes && (
                   <div className="sm:col-span-2">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Background Notes</p>
-                    <p className="text-xs leading-relaxed rounded-xl border p-3" style={{ color: "var(--text-color)", borderColor: "var(--card-border)", background: "var(--accent)" }}>{lead.notes}</p>
+                    <p className="text-xs leading-relaxed rounded-xl border p-3" style={{ color: "var(--text-color)", borderColor: "var(--card-border)", background: "var(--accent)" }}>{deal.notes}</p>
                   </div>
                 )}
               </div>
@@ -862,7 +1016,7 @@ export default function LeadDetailPage() {
           {/* Cadence Board */}
           <section id="cadence" className="rounded-2xl border p-5 scroll-mt-20" style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}>
             <h2 className="cause-font text-base font-bold" style={{ color: "var(--text-color)" }}>Engagement Cadence</h2>
-            <p className="text-xs text-muted-foreground mb-3">Non-engaged Leads Follow-up sequence</p>
+            <p className="text-xs text-muted-foreground mb-3">Deal follow-through sequence</p>
             <CadenceBoard columns={cadenceColumns} />
           </section>
 
@@ -879,11 +1033,11 @@ export default function LeadDetailPage() {
               <input value={newNote} onChange={(e) => setNewNote(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddNote()} className="ct-fi flex-1" placeholder="Add a note..." />
               <button onClick={handleAddNote} disabled={!newNote.trim()} className="h-9 px-3 rounded-xl text-xs font-semibold disabled:opacity-50" style={{ background: "var(--graph-to)", color: "#0a0a0a" }}>Add</button>
             </div>
-            {(lead.lead_notes?.length ?? 0) === 0 ? (
+            {(deal.dnotes?.length ?? 0) === 0 ? (
               <p className="text-xs text-muted-foreground">No notes yet.</p>
             ) : (
               <div className="space-y-3">
-                {lead.lead_notes!.map((n) => (
+                {deal.dnotes!.map((n) => (
                   <div key={n.id} className="flex gap-2.5">
                     <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[9px] font-bold mt-0.5" style={{ background: "linear-gradient(135deg,#a855f7,#00f2fe)", color: "#0a0a0a" }}>{(n.author || "Y")[0]}</div>
                     <div>
@@ -942,39 +1096,13 @@ export default function LeadDetailPage() {
         </div>
       </div>
 
-      {/* ── CONVERT TO PROSPECT MODAL ── */}
-      {convertOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setConvertOpen(false)} />
-          <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl t-modal-pop space-y-4" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
-            <div className="flex items-center justify-between">
-              <h3 className="cause-font text-lg font-bold" style={{ color: "var(--text-color)" }}>Convert to Prospect</h3>
-              <button onClick={() => setConvertOpen(false)} className="h-8 w-8 rounded-lg border flex items-center justify-center hover:opacity-70" style={{ borderColor: "var(--card-border)" }}><X size={14} /></button>
-            </div>
-            <p className="text-xs text-muted-foreground -mt-2">Capture BANT details — Budget, Authority, Need, Timeline — to qualify {lead.first_name} as a Prospect.</p>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <EF label="Budget (₹) *" error={convertTried ? convertErrors.budget : undefined}><input type="number" value={convertForm.budget} onChange={(e) => setConvertForm((f) => ({ ...f, budget: e.target.value }))} className="ct-fi" placeholder="500000" /></EF>
-              <EF label="Timeline *" error={convertTried ? convertErrors.timeline : undefined}><input value={convertForm.timeline} onChange={(e) => setConvertForm((f) => ({ ...f, timeline: e.target.value }))} className="ct-fi" placeholder="Next quarter" /></EF>
-              <EF label="Decision Maker / Authority *" error={convertTried ? convertErrors.authority : undefined}><input value={convertForm.authority} onChange={(e) => setConvertForm((f) => ({ ...f, authority: e.target.value }))} className="ct-fi" placeholder="e.g. CTO sign-off" /></EF>
-              <EF label="Industry *" error={convertTried ? convertErrors.industry : undefined}><input value={convertForm.industry} onChange={(e) => setConvertForm((f) => ({ ...f, industry: e.target.value }))} className="ct-fi" /></EF>
-              <EF label="City *" error={convertTried ? convertErrors.city : undefined}><input value={convertForm.city} onChange={(e) => setConvertForm((f) => ({ ...f, city: e.target.value }))} className="ct-fi" /></EF>
-              <EF label="Need / Pain Point *" error={convertTried ? convertErrors.need : undefined}><input value={convertForm.need} onChange={(e) => setConvertForm((f) => ({ ...f, need: e.target.value }))} className="ct-fi" placeholder="What problem are we solving?" /></EF>
-            </div>
-            <div className="flex gap-3 pt-1">
-              <button onClick={() => setConvertOpen(false)} className="flex-1 h-11 rounded-xl border font-semibold text-sm hover:opacity-75" style={{ borderColor: "var(--card-border)", color: "var(--text-color)" }}>Cancel</button>
-              <button onClick={handleConvert} disabled={converting || !convertValid} title={!convertValid ? "Fill in all BANT fields to enable conversion" : undefined} className="flex-1 h-11 rounded-xl font-semibold text-sm disabled:cursor-not-allowed" style={{ background: "var(--graph-to)", color: "#0a0a0a", opacity: (converting || !convertValid) ? 0.5 : 1 }}>{converting ? "Converting..." : "Convert"}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── DELETE MODAL ── */}
       {deleteOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm t-modal-backdrop" onClick={() => setDeleteOpen(false)} />
           <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl t-modal-pop" style={{ background: "var(--card-bg-solid)", border: "1px solid var(--card-border)" }}>
-            <h3 className="cause-font text-lg font-bold mb-2" style={{ color: "var(--text-color)" }}>Delete Lead?</h3>
-            <p className="text-xs text-muted-foreground mb-4">This will permanently delete <strong>{lead.first_name} {lead.last_name}</strong> and all associated notes and reminders. This cannot be undone.</p>
+            <h3 className="cause-font text-lg font-bold mb-2" style={{ color: "var(--text-color)" }}>Delete Deal?</h3>
+            <p className="text-xs text-muted-foreground mb-4">This will permanently delete <strong>{deal.title}</strong> and all associated notes and reminders. This cannot be undone.</p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteOpen(false)} className="flex-1 h-10 rounded-xl border font-semibold text-sm hover:opacity-75" style={{ borderColor: "var(--card-border)", color: "var(--text-color)" }}>Cancel</button>
               <button onClick={handleDelete} disabled={deleting} className="flex-1 h-10 rounded-xl font-semibold text-sm disabled:opacity-50" style={{ background: "#ef4444", color: "#fff" }}>{deleting ? "Deleting..." : "Delete"}</button>
@@ -1002,9 +1130,9 @@ export default function LeadDetailPage() {
 }
 
 // ─── Local helper components ───────────────────────────────────────────────
-function QuickActionButton({ icon, label, onClick, active, primary }: { icon: React.ReactNode; label: string; onClick: () => void; active?: boolean; primary?: boolean }) {
+function QuickActionButton({ icon, label, onClick, active, primary, disabled }: { icon: React.ReactNode; label: string; onClick: () => void; active?: boolean; primary?: boolean; disabled?: boolean }) {
   return (
-    <button onClick={onClick} className="h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 border hover:opacity-80" style={{ borderColor: active ? "var(--graph-to)" : primary ? "var(--graph-to)" : "var(--card-border)", background: active || primary ? "var(--graph-to)" : "transparent", color: active || primary ? "#0a0a0a" : "var(--text-color)" }}>
+    <button onClick={onClick} disabled={disabled} className="h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 border hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderColor: active ? "var(--graph-to)" : primary ? "var(--graph-to)" : "var(--card-border)", background: active || primary ? "var(--graph-to)" : "transparent", color: active || primary ? "#0a0a0a" : "var(--text-color)" }}>
       {icon}{label}
     </button>
   );
